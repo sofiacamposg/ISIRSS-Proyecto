@@ -11,11 +11,11 @@ David Ortiz
 
 # 1.1 Propósito
 
-El propósito de este documento es definir los requisitos funcionales y no funcionales para la ampliación de la plataforma actual del ISSSTE destinada al registro y consulta de información de la población infantil de las Estancias para el Bienestar y Desarrollo Infantil (EBDI).
+El propósito de este documento es definir los requisitos funcionales y no funcionales para el desarrollo de la plataforma actual del ISSSTE destinada al registro y consulta de información de la población infantil de las Estancias para el Bienestar y Desarrollo Infantil (EBDI).
 
-La ampliación permitirá registrar periódicamente las medidas antropométricas de las niñas y niños, evaluar su crecimiento mediante patrones autorizados, generar gráficas, identificar casos que requieran seguimiento y proporcionar acceso a la información según el perfil de cada usuario.
+La plataforma permitirá registrar periódicamente las medidas antropométricas de las niñas y niños, evaluar su crecimiento mediante patrones autorizados, generar gráficas, identificar casos que requieran seguimiento y proporcionar acceso a la información según el perfil de cada usuario.
 
-Este documento servirá como referencia para el diseño, desarrollo, pruebas, validación y aceptación de las nuevas funcionalidades.
+Este documento servirá como referencia para el diseño, desarrollo, pruebas, validación y aceptación del sistema
 
 # 1.2 Alcance del producto
 
@@ -129,7 +129,7 @@ Cada EBDI deberá estar asociada con un estado y una región.
 Dependiendo la región se modificarán los parámetro clínicos
 
 # 2.5 Suposiciones y dependencias
-El ISSSTE proporcionará acceso al código y base de datos existentes.
+El ISSSTE proporcionará la información institucional, los datos disponibles y las especificaciones necesarias para diseñar la base de datos del sistema.
 El ISSSTE proporcionará las tablas de crecimiento autorizadas.
 El personal médico validará las fórmulas y categorías nutricionales.
 Cada infante tendrá una matrícula única.
