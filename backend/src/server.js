@@ -1,0 +1,10 @@
+import 'dotenv/config';
+import { createPool } from './db.js';
+import { createApp } from './app.js';
+if (!process.env.DB_USER || !process.env.DB_PASSWORD) throw new Error('Configura DB_USER y DB_PASSWORD en backend/.env');
+const origin = process.env.APP_ORIGIN || 'http://localhost:5173';
+if (process.env.NODE_ENV === 'production' && !origin.startsWith('https://')) throw new Error('Producción requiere APP_ORIGIN con HTTPS.');
+const pool = createPool();
+const app = createApp(pool, { origin, secure: process.env.NODE_ENV === 'production' });
+const server = app.listen(Number(process.env.PORT || 3001), '127.0.0.1', () => console.log('API disponible en http://localhost:3001/api'));
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => server.close(async () => { await pool.end(); process.exit(0); }));

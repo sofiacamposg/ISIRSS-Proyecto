@@ -1,0 +1,36 @@
+name: Verify application
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-root-only"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_NAME: issste_test
+      DB_ADMIN_USER: root
+      DB_ADMIN_PASSWORD: ci-root-only
+      DB_USER: isirss_ci
+      DB_PASSWORD: ci-app-only
+      SEED_PASSWORD: synthetic-ci-only-password
+      RUN_DB_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:init
+      - run: npm run db:seed
+      - run: npm test
+      - run: npm run build
