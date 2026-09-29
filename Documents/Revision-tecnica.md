@@ -57,3 +57,5 @@ React Admin se conecta a un dataProvider REST y authProvider. La API Express es 
 - Express: https://expressjs.com/en/guide/error-handling/
 
 Decisiones de infraestructura aún abiertas: un origen HTTPS, servicio de identidad institucional si aplica, rotación/retención, monitoreo, recuperación y backups. El limitador de login de esta entrega es local al proceso; un despliegue distribuido requiere almacenamiento compartido y configuración confiable del proxy.
+
+MySQL 8.4 requiere SELECT más LOCK TABLES (o UPDATE/DELETE) para SELECT ... FOR UPDATE. El inicializador concede LOCK TABLES sobre la base para bloquear durante capturas/correcciones sin habilitar actualización o borrado de históricos. Fuente: https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html

@@ -18,5 +18,8 @@ try {
   for (const table of tables) await conn.query(`GRANT SELECT ON \`${name}\`.${table} TO ${account}`);
   for (const table of ['infantes','tutores','infante_tutor','antecedentes_parentales','movimientos_padron','mediciones','medicion_versiones','bitacora','sesiones']) await conn.query(`GRANT INSERT ON \`${name}\`.${table} TO ${account}`);
   await conn.query(`GRANT DELETE ON \`${name}\`.sesiones TO ${account}`);
+  // MySQL requires LOCK TABLES (or UPDATE/DELETE) for SELECT ... FOR UPDATE.
+  // Grant locking without permitting UPDATE/DELETE of immutable histories.
+  await conn.query(`GRANT LOCK TABLES ON \`${name}\`.* TO ${account}`);
   console.log('Esquema inicial, sesiones y usuario de aplicación creados.');
 } finally { await conn.end(); }
