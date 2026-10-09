@@ -1,7 +1,7 @@
 import StatCard from "../components/Statcard";
 
 function Dashboard() {
-
+  console.log("MI DASHBOARD SE ESTA RENDERIZANDO");
   return (
     <div className="dashboard">
 
