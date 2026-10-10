@@ -5,6 +5,7 @@ function AppMenu() {
     <Menu>
       <Menu.DashboardItem primaryText="Inicio" />
       <Menu.ResourceItem name="infantes" />
+      <Menu.ResourceItem name="mediciones" />
     </Menu>
   );
 }

@@ -1,31 +1,183 @@
 import type { DataProvider } from "react-admin";
 
+// Lo siguiente solo es para mostrar datos de ejemplo ficticios y poder probar la interfaz
+type Infante = {
+  id: number;
+  nombre: string;
+  fechaNacimiento?: string;
+  sexo?: string;
+  unidadAtencion?: string;
+  tutor?: string;
+};
+
+const infantes: Infante[] = [
+  { id: 1, nombre: "Sofía Martínez" },
+  { id: 2, nombre: "Mateo Hernández" },
+  { id: 3, nombre: "Valentina López" },
+];
+
+type Medicion = {
+  id: number;
+  infanteId: number;
+  fecha: string;
+  pesoKg: number;
+  tallaCm: number;
+};
+
+const mediciones: Medicion[] = [
+  {
+    id: 1,
+    infanteId: 1,
+    fecha: "2026-09-01",
+    pesoKg: 12.4,
+    tallaCm: 86.5,
+  },
+  {
+    id: 2,
+    infanteId: 2,
+    fecha: "2026-09-15",
+    pesoKg: 14.2,
+    tallaCm: 92.0,
+  },
+];
+
 export const dataProvider: DataProvider = {
-  getList: async () => ({
-    data: [],
-    total: 0,
-  }),
+  getList: async (resource: string, _params: any) => {
+    if (resource === "infantes") {
+      return {
+        data: infantes as any[],
+        total: infantes.length,
+      } as any;
+    }
 
-  getOne: async (_resource, _params) => ({
-    data: {} as any,
-  }),
+    if(resource === "mediciones") {
+      return {
+        data: mediciones as any[],
+        total: mediciones.length,
+      } as any;
+    }
 
-  getMany: async () => ({
-    data: [],
-  }),
+    return { data: [], total: 0 } as any;
+  },
+
+  getOne: async (resource, params) => {
+    if (resource === "infantes") {
+      const infante = infantes.find(
+        (item) => String(item.id) === String(params.id)
+      );
+
+      if (!infante) {
+        throw new Error("Infante no encontrado");
+      }
+
+      const medicion=mediciones.find(
+        (item) => String(item.infanteId) === String(params.id)
+      );
+
+      if (!medicion) {
+        throw new Error("Medición no encontrada");
+      }
+
+      return { data: infante as any };
+    }
+
+    throw new Error("Recurso no encontrado");
+  },
+
+  getMany: async (resource, params) => {
+    if (resource === "infantes") {
+      return {
+        data: infantes.filter(
+          (item) => params.ids.includes(item.id)
+        ) as any[],
+      };
+    }
+
+    if (resource === "mediciones") {
+      return {
+        data: mediciones.filter(
+          (item) => params.ids.includes(item.id)
+        ) as any[],
+      };
+    }
+
+    return { data: [] };
+  },
 
   getManyReference: async () => ({
     data: [],
     total: 0,
   }),
 
-  create: async (_resource, params) => ({
-    data: params.data as any,
-  }),
+  create: async (resource, params) => {
+    if (resource === "infantes") {
+      const nuevoInfante = {
+        ...params.data,
+        id: Date.now(),
+      } as Infante;
 
-  update: async (_resource, params) => ({
-    data: params.data as any,
-  }),
+      infantes.push(nuevoInfante);
+
+      return { data: nuevoInfante as any };
+    }
+
+    if (resource === "mediciones") {
+      const nuevaMedicion: Medicion = {
+        ...params.data,
+        id: Date.now(),
+      } as Medicion;
+
+      mediciones.push(nuevaMedicion);
+
+      return { data: nuevaMedicion as any };
+    }
+
+    throw new Error("Recurso no encontrado");
+  },
+
+  update: async (resource, params) => {
+    if (resource === "infantes") {
+      const index = infantes.findIndex(
+        (item) => String(item.id) === String(params.id)
+      );
+
+      if (index === -1) {
+        throw new Error("Infante no encontrado");
+      }
+
+      const actualizado = {
+        ...infantes[index],
+        ...params.data,
+        id: infantes[index].id,
+      };
+
+      infantes[index] = actualizado;
+
+      return { data: actualizado as any };
+    }
+
+    if (resource === "mediciones") {
+      const index = mediciones.findIndex(
+        (item) => String(item.id) === String(params.id)
+      );
+
+      if (index === -1) {
+        throw new Error("Medición no encontrada");
+      }
+
+      const actualizada: Medicion = {
+        ...mediciones[index],
+        ...params.data,
+        id: mediciones[index].id,
+      };
+
+      mediciones[index] = actualizada;
+
+      return { data: actualizada as any };
+    }
+
+    throw new Error("Recurso no encontrado");
+  },
 
   updateMany: async (_resource, params) => ({
     data: params.ids,

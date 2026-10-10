@@ -2,7 +2,8 @@ import { Admin, Resource } from "react-admin";
 import Dashboard from "./pages/Dashboard";
 import { authProvider } from "./pages/AuthProvider";
 import { dataProvider } from "./dataProvider";
-import { InfantesList } from "./pages/Infantes";
+import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
+import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
 import AppLayout from "./layout/AppLayout";
 
 function App() {
@@ -17,8 +18,20 @@ function App() {
       <Resource
         name="infantes"
         list={InfantesList}
+        create={InfantesCreate}
+        edit={InfantesEdit}
+        show={InfantesShow}
         options={{ label: "Infantes" }}
       />
+
+      <Resource
+        name="mediciones"
+        list={MedicionesList}
+        create={MedicionesCreate}
+        edit={MedicionesEdit}
+        show={MedicionesShow}
+        options={{ label: "Mediciones" }}
+        />
     </Admin>
   );
 }
