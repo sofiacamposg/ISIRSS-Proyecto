@@ -1,9 +1,9 @@
-import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, ReferenceInput, SelectInput, NumberInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, } from "react-admin";
+import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, FunctionField, ReferenceInput, SelectInput, NumberInput, DateInput, TextInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
 
 export function MedicionesList() {
   return (
     <List title="Mediciones de crecimiento">
-      <Datagrid rowClick="show">
+      <Datagrid>
         <TextField source="id" label="ID" />
         <ReferenceField source="infanteId" reference="infantes" label="Infante" >
           <TextField source="nombre" />
@@ -11,6 +11,10 @@ export function MedicionesList() {
         <DateField source="fecha" label="Fecha" />
         <NumberField source="pesoKg" label="Peso (kg)" />
         <NumberField source="tallaCm" label="Talla (cm)" />
+        <NumberField source="perimetroCefalicoCm" label="Perimetro cefálico (cm)" />
+        <TextField source="observaciones" label="Observaciones" />
+        <ShowButton label="Ver mediciones" />
+        <EditButton label="Editar" />
       </Datagrid>
     </List>
   );
@@ -26,6 +30,8 @@ export function MedicionesCreate() {
         <DateInput source="fecha" label="Fecha de medición" validate={required()} />
         <NumberInput source="pesoKg" label="Peso (kg)" min={0} step={0.01} validate={required()} />
         <NumberInput source="tallaCm" label="Talla (cm)" min={0} step={0.1} validate={required()} />
+        <NumberInput source="perimetrosCefalicosCm" label="Perimetro cefálico (cm)" min={0.1} step={0.1} />
+        <TextInput source="observaciones" label="Observaciones" multiline fullWidth />
       </SimpleForm>
     </Create>
   );
@@ -42,6 +48,8 @@ export function MedicionesShow() {
         <DateField source="fecha" label="Fecha de medición" />
         <NumberField source="pesoKg" label="Peso (kg)" />
         <NumberField source="tallaCm" label="Talla (cm)" />
+        <NumberField source="perimetrosCefalicosCm" label="Perimetro cefálico (cm)" />
+        <TextField source="observaciones" label="Observaciones" />
       </SimpleShowLayout>
     </Show>
   );
@@ -57,6 +65,8 @@ export function MedicionesEdit() {
         <DateInput source="fecha" label="Fecha de medición" validate={required()} />
         <NumberInput source="pesoKg" label="Peso (kg)" min={0} step={0.01} validate={required()} />
         <NumberInput source="tallaCm" label="Talla (cm)" min={0} step={0.1} validate={required()} />
+        <NumberInput source="perimetrosCefalicosCm" label="Perimetro cefálico (cm)" min={0.1} step={0.1} />
+        <TextInput source="observaciones" label="Observaciones" multiline fullWidth />
       </SimpleForm>
     </Edit>
   );

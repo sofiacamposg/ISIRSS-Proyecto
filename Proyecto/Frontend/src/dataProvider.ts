@@ -1,4 +1,4 @@
-import type { DataProvider } from "react-admin";
+import { GET_ONE, type DataProvider } from "react-admin";
 
 // Lo siguiente solo es para mostrar datos de ejemplo ficticios y poder probar la interfaz
 type Infante = {
@@ -22,6 +22,8 @@ type Medicion = {
   fecha: string;
   pesoKg: number;
   tallaCm: number;
+  perimetroCefalicoCm?: number;
+  observaciones?: string;
 };
 
 const mediciones: Medicion[] = [
@@ -31,6 +33,8 @@ const mediciones: Medicion[] = [
     fecha: "2026-09-01",
     pesoKg: 12.4,
     tallaCm: 86.5,
+    perimetroCefalicoCm: 48.2,
+    observaciones: "Medición de ejemplo.",
   },
   {
     id: 2,
@@ -38,6 +42,8 @@ const mediciones: Medicion[] = [
     fecha: "2026-09-15",
     pesoKg: 14.2,
     tallaCm: 92.0,
+    perimetroCefalicoCm: 49.1,
+    observaciones: "Registro de prueba.",
   },
 ];
 
@@ -61,27 +67,34 @@ export const dataProvider: DataProvider = {
   },
 
   getOne: async (resource, params) => {
+    console.log("getOne recibio:", resource, params.id);
+    const id = String(params.id);
+
     if (resource === "infantes") {
       const infante = infantes.find(
-        (item) => String(item.id) === String(params.id)
+        (item) => String(item.id) === id
       );
 
       if (!infante) {
-        throw new Error("Infante no encontrado");
-      }
-
-      const medicion=mediciones.find(
-        (item) => String(item.infanteId) === String(params.id)
-      );
-
-      if (!medicion) {
-        throw new Error("Medición no encontrada");
+        throw new Error(`Infante con ID ${id} no encontrado`);
       }
 
       return { data: infante as any };
     }
 
-    throw new Error("Recurso no encontrado");
+    if (resource === "mediciones") {
+      const medicion = mediciones.find(
+        (item) => String(item.id) === String(params.id)
+      );
+
+      if (!medicion) {
+        throw new Error(`Medición con ID ${id} no encontrada`);
+      }
+
+      return { data: medicion as any };
+    }
+
+    throw new Error(`Recurso ${resource} no encontrado`);
   },
 
   getMany: async (resource, params) => {
