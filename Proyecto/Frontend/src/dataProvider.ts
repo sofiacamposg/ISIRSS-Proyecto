@@ -162,7 +162,7 @@ export const dataProvider: DataProvider = {
         data: infantesConSeguimiento as any[],
         total: infantesConSeguimiento.length,
       } as any;
-    }
+    } 
 
     if(resource === "mediciones") {
       return {
@@ -175,6 +175,28 @@ export const dataProvider: DataProvider = {
       return {
         data: seguimientos as any[],
         total: seguimientos.length,
+      } as any;
+    }
+
+    if (resource === "alertas") {
+      const alertas = infantes
+        .map((infante) => {
+          const resumen = obtenerResumenMediciones(infante.id);
+          return {
+            id: infante.id,
+            infanteId: infante.id,
+            nombre: infante.nombre,
+            ...resumen,
+          };
+        })
+        .filter((infante) => infante.estadoSeguimiento !== "Al día").sort((a, b) => {
+          if (a.diasDesdeUltimaMedicion == null) return -1;
+          if (b.diasDesdeUltimaMedicion == null) return 1;
+          return b.diasDesdeUltimaMedicion - a.diasDesdeUltimaMedicion;
+        });
+      return {
+        data: alertas as any[],
+        total: alertas.length,
       } as any;
     }
 

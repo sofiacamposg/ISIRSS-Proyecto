@@ -5,6 +5,9 @@ import { dataProvider } from "./dataProvider";
 import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
 import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
 import { SeguimientosCreate, SeguimientosEdit, SeguimientosList, SeguimientosShow } from "./pages/Seguimientos";
+import { CrecimientoPage } from "./pages/Crecimiento";
+import { AlertasList } from "./pages/Alertas";
+import { ReportesPage } from "./pages/Reportes";
 import AppLayout from "./layout/AppLayout";
 
 function App() {
@@ -39,6 +42,21 @@ function App() {
         create={SeguimientosCreate}
         show={SeguimientosShow}
         edit={SeguimientosEdit}
+      />
+      <Resource
+        name="crecimiento"
+        options={{ label: "Gráficas de crecimiento" }}
+        list={CrecimientoPage}
+      />
+      <Resource
+        name="alertas"
+        list={AlertasList}
+        options={{ label: "Alertas" }}
+      />
+      <Resource
+        name="reportes"
+        list={ReportesPage}
+        options={{ label: "Reportes" }}
       />
     </Admin>
   );

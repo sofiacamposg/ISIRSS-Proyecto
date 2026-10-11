@@ -8,6 +8,9 @@ function AppMenu() {
       <Menu.ResourceItem name="infantes" />
       <Menu.ResourceItem name="mediciones" />
       <Menu.ResourceItem name="seguimientos" options={{ label: "Seguimiento nutricional"}} />
+      <Menu.ResourceItem name="crecimiento" />
+      <Menu.ResourceItem name="alertas" />
+      <Menu.ResourceItem name="reportes" />
     </Menu>
   );
 }
