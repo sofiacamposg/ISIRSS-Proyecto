@@ -1,4 +1,4 @@
-import {List, Datagrid, TextField, DateField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, TopToolbar, ListButton,} from "react-admin";
+import {List, Datagrid, TextField, DateField, NumberField, FunctionField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, TopToolbar, ListButton, ReferenceManyField,} from "react-admin";
 
 export function InfantesList() {
   return (
@@ -10,6 +10,9 @@ export function InfantesList() {
         <TextField source="sexo" label="Sexo" />
         <TextField source="unidadAtencion" label="Unidad de atención" />
         <TextField source="tutor" label="Padre, madre o tutor" />
+        <FunctionField label="Última medición" render={(record) => record.ultimaMedicion || "Sin registro"} />
+        <FunctionField label="Días transcurridos" render={(record) => record.diasDesdeUltimaMedicion ?? "__"} />
+        <FunctionField label="Estado de seguimiento" render={(record) => record.estadoSeguimiento} />
         <EditButton label="Editar" />
         <ShowButton label="Ver ficha" />
       </Datagrid>
@@ -47,6 +50,16 @@ export function InfantesShow() {
         <TextField source="sexo" label="Sexo" />
         <TextField source="unidadAtencion" label="Unidad de atención" />
         <TextField source="tutor" label="Padre, madre o tutor" />
+        <ReferenceManyField reference="mediciones" target="infanteId" label="Historial de crecimiento" sort={{ field: "fecha", order: "DESC" }} perPage={100} >
+          <Datagrid bulkActionButtons={false}>
+            <DateField source="fecha" label="Fecha" />
+            <FunctionField label="Edad en la medición" render={(record) => record.edadEnMedicion} />
+            <NumberField source="pesoKg" label="Peso (kg)" />
+            <NumberField source="tallaCm" label="Talla (cm)" />
+            <NumberField source="perimetroCefalicoCm" label="Perímetro cefálico (cm)" />
+            <TextField source="observaciones" label="Observaciones" />
+          </Datagrid>
+        </ReferenceManyField>
       </SimpleShowLayout>
     </Show>
   );
