@@ -105,6 +105,43 @@ const ebdis: EBDI[] = [
   { id: 3, nombre: "EBDI de ejemplo Oeste", clave: "EJ-JAL-001", estadoId: 3, municipio: "Guadalajara", activo: true },
 ];
 
+// Alcance de acceso DEMO.
+function rolActual(): string { return localStorage.getItem("userRole") ?? "sin_perfil"; }
+function idsInfantesPermitidos(): number[] {
+  const rol = rolActual();
+  if (rol === "administrador") return infantes.map((x) => x.id);
+  if (rol === "tutor") {
+    try { return JSON.parse(localStorage.getItem("userInfanteIds") ?? "[]").map(Number); } catch { return []; }
+  }
+  if (rol === "estancia") {
+    const ebdiId = Number(localStorage.getItem("userEbdiId"));
+    return infantes.filter((x) => Number(x.ebdiId) === ebdiId).map((x) => x.id);
+  }
+  if (rol === "coordinador_regional") {
+    const regionId = Number(localStorage.getItem("userRegionId"));
+    const estadosDeRegion = estados.filter((x) => Number(x.regionId) === regionId).map((x) => x.id);
+    const ebdisDeRegion = ebdis.filter((x) => estadosDeRegion.includes(Number(x.estadoId))).map((x) => x.id);
+    return infantes.filter((x) => ebdisDeRegion.includes(Number(x.ebdiId))).map((x) => x.id);
+  }
+  return [];
+}
+function puedeConsultarRecurso(resource: string): boolean {
+  const rol = rolActual();
+  if (rol === "administrador") return true;
+  if (["infantes", "mediciones", "seguimientos", "crecimiento", "alertas"].includes(resource)) return ["estancia", "coordinador_regional", "tutor"].includes(rol);
+  if (resource === "reportes") return ["estancia", "coordinador_regional"].includes(rol);
+  if (["regiones", "estados", "ebdis"].includes(resource)) return rol === "coordinador_regional" || (rol === "estancia" && resource === "ebdis");
+  return false;
+}
+function puedeModificarRecurso(resource: string): boolean {
+  const rol = rolActual();
+  if (rol === "administrador") return true;
+  return rol === "estancia" && ["infantes", "mediciones", "seguimientos"].includes(resource);
+}
+function infantePermitido(infanteId: unknown): boolean { return idsInfantesPermitidos().includes(Number(infanteId)); }
+function medicionPermitida(item: Medicion): boolean { return infantePermitido(item.infanteId); }
+function seguimientoPermitido(item: Seguimiento): boolean { return infantePermitido(item.infanteId); }
+
 // funcion para calcular la edad
 function calcularEdadEnMeses(fechaNacimiento?: string, fechaMedicion?: string): number | null {
   if (!fechaNacimiento || !fechaMedicion) {
@@ -184,8 +221,9 @@ function obtenerResumenMediciones(infanteId: number) {
 
 export const dataProvider: DataProvider = {
   getList: async (resource: string, _params: any) => {
+    if (!puedeConsultarRecurso(resource)) return { data: [], total: 0 } as any;
     if (resource === "infantes") {
-      const infantesConSeguimiento = infantes.map((infante) => ({
+      const infantesConSeguimiento = infantes.filter((infante) => infantePermitido(infante.id)).map((infante) => ({
         ...infante,
         ...obtenerResumenMediciones(infante.id),
       }));
@@ -196,21 +234,18 @@ export const dataProvider: DataProvider = {
     } 
 
     if(resource === "mediciones") {
-      return {
-        data: mediciones as any[],
-        total: mediciones.length,
-      } as any;
+      const filtradas = mediciones.filter(medicionPermitida);
+      return { data: filtradas as any[], total: filtradas.length } as any;
     }
 
     if (resource === "seguimientos") {
-      return {
-        data: seguimientos as any[],
-        total: seguimientos.length,
-      } as any;
+      const filtrados = seguimientos.filter(seguimientoPermitido);
+      return { data: filtrados as any[], total: filtrados.length } as any;
     }
 
     if (resource === "alertas") {
       const alertas = infantes
+        .filter((infante) => infantePermitido(infante.id))
         .map((infante) => {
           const resumen = obtenerResumenMediciones(infante.id);
           return {
@@ -232,10 +267,16 @@ export const dataProvider: DataProvider = {
     }
 
     if (resource === "regiones") {
-      return { data: regiones as any[], total: regiones.length } as any;
+      const disponibles = rolActual() === "coordinador_regional"
+        ? regiones.filter((r) => String(r.id) === localStorage.getItem("userRegionId"))
+        : regiones;
+      return { data: disponibles as any[], total: disponibles.length } as any;
     }
     if (resource === "estados") {
-      const filtrados = _params.filter?.regionId ? estados.filter((item) => String(item.regionId) === String(_params.filter.regionId)) : estados;
+      let filtrados = _params.filter?.regionId
+        ? estados.filter((item) => String(item.regionId) === String(_params.filter.regionId))
+        : [...estados];
+      if (rolActual() === "coordinador_regional") filtrados = filtrados.filter((item) => String(item.regionId) === localStorage.getItem("userRegionId"));
       return { data: filtrados as any[], total: filtrados.length } as any;
     }
     if (resource === "ebdis") {
@@ -244,6 +285,12 @@ export const dataProvider: DataProvider = {
       if (_params.filter?.regionId) {
         const idsEstados = estados.filter((e) => String(e.regionId) === String(_params.filter.regionId)).map((e) => e.id);
         filtrados = filtrados.filter((item) => idsEstados.includes(item.estadoId));
+      }
+      if (rolActual() === "estancia") filtrados = filtrados.filter((item) => String(item.id) === localStorage.getItem("userEbdiId"));
+      if (rolActual() === "coordinador_regional") {
+        const regionId = Number(localStorage.getItem("userRegionId"));
+        const estadosDeRegion = estados.filter((e) => e.regionId === regionId).map((e) => e.id);
+        filtrados = filtrados.filter((item) => estadosDeRegion.includes(item.estadoId));
       }
       return { data: filtrados as any[], total: filtrados.length } as any;
     }
@@ -260,8 +307,8 @@ export const dataProvider: DataProvider = {
         (item) => String(item.id) === id
       );
 
-      if (!infante) {
-        throw new Error(`Infante con ID ${id} no encontrado`);
+      if (!infante || !infantePermitido(infante.id)) {
+        throw new Error(`Infante con ID ${id} no encontrado o fuera de tu ámbito de acceso`);
       }
 
       return { data: { ...infante, ...obtenerResumenMediciones(infante.id) } as any };
@@ -272,8 +319,8 @@ export const dataProvider: DataProvider = {
         (item) => String(item.id) === String(params.id)
       );
 
-      if (!medicion) {
-        throw new Error(`Medición con ID ${id} no encontrada`);
+      if (!medicion || !medicionPermitida(medicion)) {
+        throw new Error(`Medición con ID ${id} no encontrada o fuera de tu ámbito de acceso`);
       }
 
       return { data: medicion as any };
@@ -281,25 +328,26 @@ export const dataProvider: DataProvider = {
 
     if (resource === "seguimientos") {
       const seguimiento = seguimientos.find((item) => String(item.id) === String(params.id));
-      if (!seguimiento) {
-        throw new Error(`Seguimiento con ID ${params.id} no encontrado`);
+      if (!seguimiento || !seguimientoPermitido(seguimiento)) {
+        throw new Error(`Seguimiento con ID ${params.id} no encontrado o fuera de tu ámbito de acceso`);
       }
       return { data: seguimiento as any };
     }
 
     if (resource === "regiones") {
       const item = regiones.find((x) => String(x.id) === id);
-      if (!item) throw new Error(`Región con ID ${id} no encontrada`);
+      if (!item || (rolActual() === "coordinador_regional" && String(item.id) !== localStorage.getItem("userRegionId"))) throw new Error(`Región con ID ${id} no encontrada o fuera de tu ámbito de acceso`);
       return { data: item as any };
     }
     if (resource === "estados") {
       const item = estados.find((x) => String(x.id) === id);
-      if (!item) throw new Error(`Estado con ID ${id} no encontrado`);
+      if (!item || (rolActual() === "coordinador_regional" && String(item.regionId) !== localStorage.getItem("userRegionId"))) throw new Error(`Estado con ID ${id} no encontrado o fuera de tu ámbito de acceso`);
       return { data: item as any };
     }
     if (resource === "ebdis") {
       const item = ebdis.find((x) => String(x.id) === id);
-      if (!item) throw new Error(`EBDI con ID ${id} no encontrado`);
+      const estado = item ? estados.find((e) => e.id === item.estadoId) : undefined;
+      if (!item || (rolActual() === "estancia" && String(item.id) !== localStorage.getItem("userEbdiId")) || (rolActual() === "coordinador_regional" && String(estado?.regionId) !== localStorage.getItem("userRegionId"))) throw new Error(`EBDI con ID ${id} no encontrada o fuera de tu ámbito de acceso`);
       return { data: item as any };
     }
 
@@ -308,13 +356,13 @@ export const dataProvider: DataProvider = {
 
   getMany: async (resource, params) => {
     if (resource === "infantes") {
-      return {data: infantes.filter((item) => params.ids.includes(item.id)) as any[],};
+      return {data: infantes.filter((item) => params.ids.map(String).includes(String(item.id)) && infantePermitido(item.id)) as any[],};
     }
     if (resource === "mediciones") {
-      return {data: mediciones.filter((item) => params.ids.includes(item.id)) as any[],};
+      return {data: mediciones.filter((item) => params.ids.map(String).includes(String(item.id)) && medicionPermitida(item)) as any[],};
     }
     if (resource === "seguimientos") {
-      return {data: seguimientos.filter((item) => params.ids.map(String).includes(String(item.id))) as any[],};
+      return {data: seguimientos.filter((item) => params.ids.map(String).includes(String(item.id)) && seguimientoPermitido(item)) as any[],};
     }
     if (resource === "regiones") return { data: regiones.filter((item) => params.ids.map(String).includes(String(item.id))) as any[] };
     if (resource === "estados") return { data: estados.filter((item) => params.ids.map(String).includes(String(item.id))) as any[] };
@@ -327,7 +375,8 @@ export const dataProvider: DataProvider = {
       return { data: [], total: 0 };
     }
     const infanteId = String(params.id);
-    const filtradas = mediciones.filter((medicion) => String((medicion as any)[params.target]) === infanteId).sort((a, b) => {
+    if (!infantePermitido(infanteId)) return { data: [], total: 0 };
+    const filtradas = mediciones.filter((medicion) => String((medicion as any)[params.target]) === infanteId && medicionPermitida(medicion)).sort((a, b) => {
         const direccion = params.sort?.order === "ASC" ? 1 : -1;
         const campo = params.sort?.field ?? "fecha";
         return (String((a as any)[campo] ?? "").localeCompare(String((b as any)[campo] ?? "")) * direccion);
@@ -351,9 +400,12 @@ export const dataProvider: DataProvider = {
   },
 
   create: async (resource, params) => {
+    if (!puedeModificarRecurso(resource)) throw new Error("Tu perfil no tiene permiso para crear registros en este módulo.");
     if (resource === "infantes") {
+      const datos = { ...params.data };
+      if (rolActual() === "estancia") datos.ebdiId = Number(localStorage.getItem("userEbdiId"));
       const nuevoInfante = {
-        ...params.data,
+        ...datos,
         id: Date.now(),
       } as Infante;
       infantes.push(nuevoInfante);
@@ -361,6 +413,7 @@ export const dataProvider: DataProvider = {
     }
 
     if (resource === "mediciones") {
+      if (!infantePermitido(params.data.infanteId)) throw new Error("No puedes registrar mediciones para un infante fuera de tu ámbito.");
       const nuevaMedicion: Medicion = {
         ...params.data,
         id: Date.now(),
@@ -370,6 +423,7 @@ export const dataProvider: DataProvider = {
     }
 
     if (resource === "seguimientos") {
+      if (!infantePermitido(params.data.infanteId)) throw new Error("No puedes registrar seguimientos para un infante fuera de tu ámbito.");
       const nuevoSeguimiento: Seguimiento = {
         ...params.data,
         id: Date.now(),
@@ -379,31 +433,34 @@ export const dataProvider: DataProvider = {
     }
 
     if (resource === "regiones") {
+      const data = params.data as Partial<Region>;
       const nuevo: Region = {
-        ...(params.data as Partial<Region>),
-        nombre: String((params.data as Partial<Region>)?.nombre ?? ""),
+        ...data,
+        nombre: data.nombre ?? "",
         id: Date.now(),
       };
       regiones.push(nuevo);
       return { data: nuevo as any };
     }
     if (resource === "estados") {
+      const data = params.data as Partial<Estado>;
       const nuevo: Estado = {
-        ...(params.data as Partial<Estado>),
-        nombre: String((params.data as Partial<Estado>)?.nombre ?? ""),
-        regionId: Number((params.data as Partial<Estado>)?.regionId ?? 0),
+        ...data,
+        nombre: data.nombre ?? "",
+        regionId: Number(data.regionId ?? 0),
         id: Date.now(),
       };
       estados.push(nuevo);
       return { data: nuevo as any };
     }
     if (resource === "ebdis") {
+      const data = params.data as Partial<EBDI>;
       const nuevo: EBDI = {
-        ...(params.data as Partial<EBDI>),
-        nombre: String((params.data as Partial<EBDI>)?.nombre ?? ""),
-        clave: String((params.data as Partial<EBDI>)?.clave ?? ""),
-        estadoId: Number((params.data as Partial<EBDI>)?.estadoId ?? 0),
-        activo: Boolean((params.data as Partial<EBDI>)?.activo ?? true),
+        activo: true,
+        ...data,
+        nombre: data.nombre ?? "",
+        clave: data.clave ?? "",
+        estadoId: Number(data.estadoId ?? 0),
         id: Date.now(),
       };
       ebdis.push(nuevo);
@@ -413,14 +470,16 @@ export const dataProvider: DataProvider = {
   },
 
   update: async (resource, params) => {
+    if (!puedeModificarRecurso(resource)) throw new Error("Tu perfil no tiene permiso para modificar registros en este módulo.");
     if (resource === "infantes") {
       const index = infantes.findIndex((item) => String(item.id) === String(params.id));
-      if (index === -1) {
-        throw new Error("Infante no encontrado");
+      if (index === -1 || !infantePermitido(infantes[index]?.id)) {
+        throw new Error("Infante no encontrado o fuera de tu ámbito de acceso");
       }
       const actualizado = {
         ...infantes[index],
         ...params.data,
+        ...(rolActual() === "estancia" ? { ebdiId: Number(localStorage.getItem("userEbdiId")) } : {}),
         id: infantes[index].id,
       };
       infantes[index] = actualizado;
@@ -429,9 +488,10 @@ export const dataProvider: DataProvider = {
 
     if (resource === "mediciones") {
       const index = mediciones.findIndex((item) => String(item.id) === String(params.id));
-      if (index === -1) {
-        throw new Error("Medición no encontrada");
+      if (index === -1 || !medicionPermitida(mediciones[index])) {
+        throw new Error("Medición no encontrada o fuera de tu ámbito de acceso");
       }
+      if (!infantePermitido(params.data.infanteId ?? mediciones[index].infanteId)) throw new Error("No puedes asignar la medición a un infante fuera de tu ámbito.");
       const actualizada: Medicion = {
         ...mediciones[index],
         ...params.data,
@@ -443,9 +503,10 @@ export const dataProvider: DataProvider = {
 
     if (resource === "seguimientos") {
       const index = seguimientos.findIndex((item) => String(item.id) === String(params.id));
-      if (index === -1) {
-        throw new Error("Seguimiento no encontrado");
+      if (index === -1 || !seguimientoPermitido(seguimientos[index])) {
+        throw new Error("Seguimiento no encontrado o fuera de tu ámbito de acceso");
       }
+      if (!infantePermitido(params.data.infanteId ?? seguimientos[index].infanteId)) throw new Error("No puedes asignar el seguimiento a un infante fuera de tu ámbito.");
       const actualizado: Seguimiento = {
         ...seguimientos[index],
         ...params.data,
@@ -476,15 +537,18 @@ export const dataProvider: DataProvider = {
     throw new Error("Recurso no encontrado");
   },
 
-  updateMany: async (_resource, params) => ({
-    data: params.ids,
-  }),
+  updateMany: async (resource, params) => {
+    if (!puedeModificarRecurso(resource)) throw new Error("Tu perfil no tiene permiso para modificar registros en este módulo.");
+    return { data: params.ids };
+  },
 
-  delete: async (_resource, params) => ({
-    data: params.previousData as any,
-  }),
+  delete: async (resource, params) => {
+    if (rolActual() !== "administrador") throw new Error("Solo el administrador puede eliminar registros.");
+    return { data: params.previousData as any };
+  },
 
-  deleteMany: async (_resource, params) => ({
-    data: params.ids,
-  }),
+  deleteMany: async (resource, params) => {
+    if (rolActual() !== "administrador") throw new Error("Solo el administrador puede eliminar registros.");
+    return { data: params.ids };
+  },
 };

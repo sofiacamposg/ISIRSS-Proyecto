@@ -11,6 +11,26 @@ import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
 import AppLayout from "./layout/AppLayout";
 
+const accessControlProvider = {
+  canAccess: async ({ resource, action }: { resource?: string; action: string }) => {
+    const role = localStorage.getItem("userRole");
+    if (role === "administrador") return true;
+    const lectura = ["list", "show", "export"];
+    const recursosOperativos = ["infantes", "mediciones", "seguimientos"];
+    const recursosConsulta = [...recursosOperativos, "crecimiento", "alertas", "reportes", "regiones", "estados", "ebdis"];
+    if (role === "coordinador_regional") {
+      return recursosConsulta.includes(resource ?? "") && lectura.includes(action);
+    }
+    if (role === "estancia") {
+      if (recursosOperativos.includes(resource ?? "")) return [...lectura, "create", "edit"].includes(action);
+      return ["crecimiento", "alertas", "reportes"].includes(resource ?? "") && lectura.includes(action);
+    }
+    if (role === "tutor") {
+      return ["infantes", "mediciones", "seguimientos", "crecimiento", "alertas"].includes(resource ?? "") && lectura.includes(action);
+    }
+    return false;
+  },
+};
 
 function App() {
   return (
