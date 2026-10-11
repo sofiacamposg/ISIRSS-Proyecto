@@ -5,10 +5,12 @@ import { dataProvider } from "./dataProvider";
 import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
 import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
 import { SeguimientosCreate, SeguimientosEdit, SeguimientosList, SeguimientosShow } from "./pages/Seguimientos";
+import { RegionesList, RegionesCreate, RegionesEdit, RegionesShow, EstadosList, EstadosCreate, EstadosEdit, EstadosShow, EBDIsList, EBDIsCreate, EBDIsEdit, EBDIsShow,} from "./pages/Catalogos";
 import { CrecimientoPage } from "./pages/Crecimiento";
 import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
 import AppLayout from "./layout/AppLayout";
+
 
 function App() {
   return (
@@ -57,6 +59,30 @@ function App() {
         name="reportes"
         list={ReportesPage}
         options={{ label: "Reportes" }}
+      />
+      <Resource
+        name="regiones"
+        list={RegionesList}
+        create={RegionesCreate}
+        edit={RegionesEdit}
+        show={RegionesShow}
+        options={{ label: "Regiones" }}
+      />
+      <Resource
+        name="estados"
+        list={EstadosList}
+        create={EstadosCreate}
+        edit={EstadosEdit}
+        show={EstadosShow}
+        options={{ label: "Estados" }}
+      />
+      <Resource
+        name="ebdis"
+        list={EBDIsList}
+        create={EBDIsCreate}
+        edit={EBDIsEdit}
+        show={EBDIsShow}
+        options={{ label: "EBDI" }}
       />
     </Admin>
   );

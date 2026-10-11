@@ -8,15 +8,21 @@ type Infante = {
   sexo?: string;
   unidadAtencion?: string;
   tutor?: string;
+  matricula?: string;
+  ebdiId?: number;
+  fechaIngreso?: string;
+  activo?: boolean;
+  seguimientoActivo?: boolean;
+  restriccionesAlimentarias?: string;
   ultimaMedicion?: string;
   diasDesdeUltimaMedicion?: number | null;
   estadoSeguimiento?: string;
 };
 
 const infantes: Infante[] = [
-  { id: 1, nombre: "Sofía Martínez", fechaNacimiento: "2024-01-15", },
-  { id: 2, nombre: "Mateo Hernández", fechaNacimiento: "2023-12-10", },
-  { id: 3, nombre: "Valentina López", fechaNacimiento: "2024-05-20", },
+  { id: 1, nombre: "Sofía Martínez", fechaNacimiento: "2024-01-15", ebdiId: 1, matricula: "EJ-001", fechaIngreso: "2025-01-15", activo: true, seguimientoActivo: true, },
+  { id: 2, nombre: "Mateo Hernández", fechaNacimiento: "2023-12-10", ebdiId: 2, matricula: "EJ-002", fechaIngreso: "2024-08-01", activo: true, seguimientoActivo: true, },
+  { id: 3, nombre: "Valentina López", fechaNacimiento: "2024-05-20", ebdiId: 3, matricula: "EJ-003", fechaIngreso: "2025-02-10", activo: true, seguimientoActivo: false, },
 ];
 
 type Medicion = {
@@ -72,6 +78,31 @@ const seguimientos: Seguimiento[] = [
     responsable: "Personal de nutrición",
     estado: "En seguimiento",
   },
+];
+
+
+// Catálogos organizacionales de ejemplo. Sustituir por el catálogo oficial validado.
+type Region = { id: number; nombre: string; descripcion?: string };
+type Estado = { id: number; nombre: string; regionId: number };
+type EBDI = { id: number; nombre: string; clave: string; estadoId: number; municipio?: string; activo: boolean };
+
+const regiones: Region[] = [
+  { id: 1, nombre: "Norte", descripcion: "Región de ejemplo" },
+  { id: 2, nombre: "Sur", descripcion: "Región de ejemplo" },
+  { id: 3, nombre: "Este", descripcion: "Región de ejemplo" },
+  { id: 4, nombre: "Oeste", descripcion: "Región de ejemplo" },
+];
+
+const estados: Estado[] = [
+  { id: 1, nombre: "Nuevo León", regionId: 1 },
+  { id: 2, nombre: "Ciudad de México", regionId: 2 },
+  { id: 3, nombre: "Jalisco", regionId: 4 },
+];
+
+const ebdis: EBDI[] = [
+  { id: 1, nombre: "EBDI de ejemplo Norte", clave: "EJ-NL-001", estadoId: 1, municipio: "Monterrey", activo: true },
+  { id: 2, nombre: "EBDI de ejemplo Centro", clave: "EJ-CDMX-001", estadoId: 2, municipio: "Ciudad de México", activo: true },
+  { id: 3, nombre: "EBDI de ejemplo Oeste", clave: "EJ-JAL-001", estadoId: 3, municipio: "Guadalajara", activo: true },
 ];
 
 // funcion para calcular la edad
@@ -200,6 +231,23 @@ export const dataProvider: DataProvider = {
       } as any;
     }
 
+    if (resource === "regiones") {
+      return { data: regiones as any[], total: regiones.length } as any;
+    }
+    if (resource === "estados") {
+      const filtrados = _params.filter?.regionId ? estados.filter((item) => String(item.regionId) === String(_params.filter.regionId)) : estados;
+      return { data: filtrados as any[], total: filtrados.length } as any;
+    }
+    if (resource === "ebdis") {
+      let filtrados = [...ebdis];
+      if (_params.filter?.estadoId) filtrados = filtrados.filter((item) => String(item.estadoId) === String(_params.filter.estadoId));
+      if (_params.filter?.regionId) {
+        const idsEstados = estados.filter((e) => String(e.regionId) === String(_params.filter.regionId)).map((e) => e.id);
+        filtrados = filtrados.filter((item) => idsEstados.includes(item.estadoId));
+      }
+      return { data: filtrados as any[], total: filtrados.length } as any;
+    }
+
     return { data: [], total: 0 } as any;
   },
 
@@ -216,7 +264,7 @@ export const dataProvider: DataProvider = {
         throw new Error(`Infante con ID ${id} no encontrado`);
       }
 
-      return { data: infante as any };
+      return { data: { ...infante, ...obtenerResumenMediciones(infante.id) } as any };
     }
 
     if (resource === "mediciones") {
@@ -239,6 +287,22 @@ export const dataProvider: DataProvider = {
       return { data: seguimiento as any };
     }
 
+    if (resource === "regiones") {
+      const item = regiones.find((x) => String(x.id) === id);
+      if (!item) throw new Error(`Región con ID ${id} no encontrada`);
+      return { data: item as any };
+    }
+    if (resource === "estados") {
+      const item = estados.find((x) => String(x.id) === id);
+      if (!item) throw new Error(`Estado con ID ${id} no encontrado`);
+      return { data: item as any };
+    }
+    if (resource === "ebdis") {
+      const item = ebdis.find((x) => String(x.id) === id);
+      if (!item) throw new Error(`EBDI con ID ${id} no encontrado`);
+      return { data: item as any };
+    }
+
     throw new Error(`Recurso ${resource} no encontrado`);
   },
 
@@ -252,6 +316,9 @@ export const dataProvider: DataProvider = {
     if (resource === "seguimientos") {
       return {data: seguimientos.filter((item) => params.ids.map(String).includes(String(item.id))) as any[],};
     }
+    if (resource === "regiones") return { data: regiones.filter((item) => params.ids.map(String).includes(String(item.id))) as any[] };
+    if (resource === "estados") return { data: estados.filter((item) => params.ids.map(String).includes(String(item.id))) as any[] };
+    if (resource === "ebdis") return { data: ebdis.filter((item) => params.ids.map(String).includes(String(item.id))) as any[] };
     return { data: [] };
   },
 
@@ -311,6 +378,37 @@ export const dataProvider: DataProvider = {
       return { data: nuevoSeguimiento as any };
     }
 
+    if (resource === "regiones") {
+      const nuevo: Region = {
+        ...(params.data as Partial<Region>),
+        nombre: String((params.data as Partial<Region>)?.nombre ?? ""),
+        id: Date.now(),
+      };
+      regiones.push(nuevo);
+      return { data: nuevo as any };
+    }
+    if (resource === "estados") {
+      const nuevo: Estado = {
+        ...(params.data as Partial<Estado>),
+        nombre: String((params.data as Partial<Estado>)?.nombre ?? ""),
+        regionId: Number((params.data as Partial<Estado>)?.regionId ?? 0),
+        id: Date.now(),
+      };
+      estados.push(nuevo);
+      return { data: nuevo as any };
+    }
+    if (resource === "ebdis") {
+      const nuevo: EBDI = {
+        ...(params.data as Partial<EBDI>),
+        nombre: String((params.data as Partial<EBDI>)?.nombre ?? ""),
+        clave: String((params.data as Partial<EBDI>)?.clave ?? ""),
+        estadoId: Number((params.data as Partial<EBDI>)?.estadoId ?? 0),
+        activo: Boolean((params.data as Partial<EBDI>)?.activo ?? true),
+        id: Date.now(),
+      };
+      ebdis.push(nuevo);
+      return { data: nuevo as any };
+    }
     throw new Error("Recurso no encontrado");
   },
 
@@ -357,6 +455,24 @@ export const dataProvider: DataProvider = {
       return { data: actualizado as any };
     }
 
+    if (resource === "regiones") {
+      const i = regiones.findIndex((x) => String(x.id) === String(params.id));
+      if (i < 0) throw new Error("Región no encontrada");
+      regiones[i] = { ...regiones[i], ...params.data, id: regiones[i].id };
+      return { data: regiones[i] as any };
+    }
+    if (resource === "estados") {
+      const i = estados.findIndex((x) => String(x.id) === String(params.id));
+      if (i < 0) throw new Error("Estado no encontrado");
+      estados[i] = { ...estados[i], ...params.data, id: estados[i].id };
+      return { data: estados[i] as any };
+    }
+    if (resource === "ebdis") {
+      const i = ebdis.findIndex((x) => String(x.id) === String(params.id));
+      if (i < 0) throw new Error("EBDI no encontrado");
+      ebdis[i] = { ...ebdis[i], ...params.data, id: ebdis[i].id };
+      return { data: ebdis[i] as any };
+    }
     throw new Error("Recurso no encontrado");
   },
 
