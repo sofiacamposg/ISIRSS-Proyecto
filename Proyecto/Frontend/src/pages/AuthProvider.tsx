@@ -64,7 +64,7 @@ export const authProvider: AuthProvider = {
         reportes: ["list", "show", "export"],
         regiones: ["list", "show"],
         estados: ["list", "show"],
-        ebdi: ["list", "show"],
+        ebdis: ["list", "show"],
       },
       estancia: {
         infantes: ["list", "show", "create", "edit"],
@@ -72,6 +72,7 @@ export const authProvider: AuthProvider = {
         seguimientos: ["list", "show", "create", "edit"],
         crecimiento: ["list", "show"],
         alertas: ["list", "show"],
+        reportes: ["list", "show", "export"]
       },
       tutor: {
         infantes: ["list", "show"],
