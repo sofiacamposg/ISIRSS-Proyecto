@@ -1,25 +1,29 @@
+/* ===================== VARIABLES ===================== */
+
 :root {
+  /* Identidad gráfica institucional */
   --guinda: #611232;
   --rojo: #9b2247;
-
   --verde-oscuro: #002f2a;
   --verde: #1e5b4f;
-
   --dorado: #a57f2c;
   --dorado-claro: #e6d194;
 
+  /* Colores de interfaz */
   --negro: #161a1d;
-  --gris: #98989a;
-
+  --gris: #5f6368;
   --blanco: #ffffff;
   --gris-fondo: #f5f5f4;
-  --gris-borde: #dedede;
+  --gris-borde: #d5d5d5;
+  --foco: #005fcc;
 
+  /* Dimensiones */
   --sidebar-w: clamp(13rem, 18vw, 16rem);
   --header-h: 4.5rem;
   --pad-page: clamp(1rem, 2.5vw, 1.875rem);
   --gap: clamp(0.75rem, 1.5vw, 1.25rem);
 
+  /* Tipografía */
   font-family: Arial, Helvetica, sans-serif;
   font-size: 100%;
   color: var(--negro);
@@ -28,510 +32,307 @@
   text-rendering: optimizeLegibility;
 }
 
-* {
-  margin: 0;
-  padding: 0;
+/* ===================== REINICIO GLOBAL ===================== */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   min-height: 100dvh;
+  margin: 0;
   background-color: var(--gris-fondo);
   color: var(--negro);
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 button,
 input,
 select,
 textarea {
-  font-family: inherit;
+  font: inherit;
 }
 
 button {
   cursor: pointer;
 }
 
-#root,
-.app {
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-/* ================= SIDEBAR ================= */
-
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-
-  width: var(--sidebar-w);
-  height: 100vh;
-  height: 100dvh;
-
-  background-color: var(--guinda);
-  color: var(--blanco);
-
-  display: flex;
-  flex-direction: column;
-
-  z-index: 100;
-}
-
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.2rem 0.9rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-logo img {
-  width: 100%;
+img,
+svg {
   max-width: 100%;
-  height: auto; 
-  object-fit: contain;
-  image-rendering: auto;
-  background-color: var(--blanco);
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-  padding: 1.2rem 1.8rem;
 }
 
-.sidebar-nav {
-  flex: 1;
-  padding: 1.25rem 0.75rem;
-  overflow-x: hidden;
-  overflow-y: auto;
+input,
+select,
+textarea {
+  max-width: 100%;
 }
 
-.nav-section {
-  margin-bottom: 1.25rem;
+input,
+select,
+textarea,
+button {
+  accent-color: var(--guinda);
 }
 
-.nav-title {
-  display: block;
+/* ===================== ACCESIBILIDAD ===================== */
 
-  padding: 0 0.75rem;
-  margin-bottom: 0.5rem;
-
-  font-size: 0.625rem;
-  font-weight: 700;
-
-  text-transform: uppercase;
-  letter-spacing: 1px;
-
-  color: var(--dorado-claro);
+/* Indicador visible al navegar con teclado */
+:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 3px;
 }
 
-.nav-item {
-  display: flex;
-  align-items: center;
-
-  padding: 0.6875rem 0.8125rem;
-  margin-bottom: 0.25rem;
-
-  border-radius: 5px;
-
-  color: rgba(255, 255, 255, 0.86);
-  text-decoration: none;
-  font-size: 0.875rem;
-
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 3px;
 }
 
-.nav-item span {
-  width: 1.75rem;
-  margin-right: 0.5rem;
-
-  font-size: 0.9375rem;
-  text-align: center;
-}
-
-.nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.10);
-  color: var(--blanco);
-}
-
-.nav-item.active {
-  background-color: var(--rojo);
-  color: var(--blanco);
-  font-weight: 700;
-}
-
-/* ================= LAYOUT ================= */
-
-.main {
-  margin-left: var(--sidebar-w);
-  padding-top: var(--header-h);
-
-  min-width: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.content {
-  padding: var(--pad-page);
-}
-
-.dashboard {
-  max-width: 100rem;
-}
-
-/* ================= DASHBOARD ================= */
-
-.welcome {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--gap);
-
-  margin-bottom: 1.5rem;
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 0.25rem;
-
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-
+/* Enlaces */
+a {
   color: var(--guinda);
+  text-underline-offset: 0.18em;
 }
 
-.welcome h1 {
-  font-size: clamp(1.25rem, 2vw, 1.5625rem);
-  color: var(--negro);
-  margin-bottom: 0.375rem;
+a:hover {
+  text-decoration-thickness: 2px;
 }
 
-.welcome p {
-  color: var(--gris);
-  font-size: 0.875rem;
-}
-
-.date {
-  text-align: right;
-}
-
-.date span {
-  display: block;
-  font-size: 0.6875rem;
-  color: var(--gris);
-}
-
-.date strong {
-  font-size: 0.9375rem;
-  color: var(--guinda);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: var(--gap);
-
-  margin-bottom: 1.5rem;
-}
-
-.stat-card {
-  position: relative;
-  overflow: hidden;
-
-  background-color: var(--blanco);
-
-  border: 1px solid var(--gris-borde);
-  border-radius: 7px;
-
-  padding: 1.25rem;
-
-  box-shadow: 0 1px 3px rgba(22, 26, 29, 0.05);
-}
-
-.stat-card::before {
-  content: "";
-
-  position: absolute;
-  top: 0;
-  left: 0;
-
-  width: 10px;
-  height: 100%;
-
-  background-color: var(--guinda);
-}
-
-.stat-card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-
-  margin-bottom: 0.875rem;
-}
-
-.stat-title {
-  display: block;
-  margin-bottom: 0.5rem;
-
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #611232;
-
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.stat-value {
-  display: block;
-
-  font-size: clamp(1.5rem, 2.2vw, 1.75rem);
-  font-weight: 700;
-  color: var(--negro);
-}
-
-.stat-description {
-  font-size: 0.6875rem;
-  color: var(--gris);
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--gap);
-
-  margin-bottom: 1.5rem;
-}
-
-.dashboard-grid > * {
-  min-width: 0;
-}
-
-.panel {
-  background-color: var(--blanco);
-
-  border: 1px solid var(--gris-borde);
-  border-radius: 7px;
-
-  box-shadow: 0 1px 3px rgba(22, 26, 29, 0.05);
-
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-
-  padding: 1.0625rem 1.25rem;
-  border-bottom: 1px solid var(--gris-borde);
-}
-
-.panel-header h3 {
-  font-size: 0.9375rem;
-  color: var(--guinda);
-}
-
-.secondary-button {
-  padding: 0.5rem 0.875rem;
-
-  border: 1px solid var(--guinda);
-  border-radius: 5px;
-
-  background-color: var(--blanco);
-  color: var(--guinda);
-
-  font-size: 0.75rem;
-  font-weight: 700;
-
-  transition: background-color 0.2s ease;
-}
-
-.secondary-button:hover {
-  background-color: #f5e9ed;
-}
-
-/* ---------- Tabla ---------- */
-
-.table-container {
-  width: 100%;
-  overflow-x: auto;
-}
+/* ===================== TABLAS GENERALES ===================== */
 
 table {
-  width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
-  font-size: 0.8125rem;
 }
 
-thead {
-  background-color: var(--blanco);
+th,
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--gris-borde);
+  text-align: left;
 }
 
 th {
-  padding: 0.6875rem 0.8125rem;
-
-  text-align: left;
-
-  font-size: 0.6875rem;
-  font-weight: 700;
   color: var(--guinda);
-
-  border-bottom: 1px solid var(--gris-borde);
-}
-
-td {
-  padding: 0.8125rem;
-  border-bottom: 1px solid #eeeeee;
-  white-space: nowrap;
+  font-weight: 700;
 }
 
 tbody tr:hover {
-  background-color: #faf7f8;
+  background-color: #f5e9ed;
 }
 
-tbody tr:last-child td {
-  border-bottom: none;
+/* Contenedores adaptables */
+.dashboard,
+.content,
+.panel,
+.table-container {
+  min-width: 0;
+  max-width: 100%;
 }
 
-.status {
-  display: inline-flex;
-  align-items: center;
+.table-container,
+.MuiTableContainer-root {
+  max-width: 100%;
+  overflow-x: auto;
+}
 
-  padding: 0.25rem 0.5625rem;
+/* ===================== ESTRUCTURA REACT-ADMIN ===================== */
 
-  border-radius: 7px;
+/* Fondo del área de trabajo */
+[class*="RaLayout-root"] {
+  min-height: 100vh;
+  background-color: var(--gris-fondo);
+}
 
-  font-size: 0.925rem;
+main[class*="RaLayout-content"] {
+  min-width: 0;
+  background-color: var(--gris-fondo);
+}
+
+/* No imponer position: fixed o sticky al encabezado.
+   React-Admin controla el comportamiento del layout. */
+header[class*="RaAppBar"] {
+  z-index: 10;
+  width: 100%;
+  background-color: var(--blanco);
+  color: var(--guinda);
+  border-bottom: 3px solid var(--guinda);
+}
+
+header[class*="RaAppBar"] .MuiToolbar-root {
+  min-height: var(--header-h);
+}
+
+header[class*="RaAppBar"] h1,
+header[class*="RaAppBar"] h2,
+header[class*="RaAppBar"] h3 {
+  color: var(--guinda);
   font-weight: 700;
 }
 
-.active-status {
-  background-color: #e7f0ee;
-  color: var(--verde);
+/* ===================== BARRA LATERAL ===================== */
+
+/* Aplicar el fondo al contenedor y al panel real del drawer.
+   No se modifica su posición ni su comportamiento de scroll. */
+[class*="RaLayout-sidebar"],
+[class*="RaSidebar-root"],
+[class*="RaSidebar-fixed"],
+[class*="RaSidebar-docked"] {
+  background-color: var(--guinda);
+  background-image: none;
+  color: var(--blanco);
 }
 
-.follow-status {
-  background-color: #f5eedf;
-  color: var(--dorado);
+[class*="RaLayout-sidebar"] .MuiDrawer-paper,
+[class*="RaSidebar-root"] .MuiDrawer-paper,
+.MuiDrawer-paper {
+  background-color: var(--guinda);
+  background-image: none;
+  color: var(--blanco);
 }
 
-/* ---------- Actividad ---------- */
-
-.activity-list {
-  padding: 0 1.25rem;
+/* Menú */
+[class*="RaMenu-root"] {
+  padding: 0.75rem 0.5rem;
+  background-color: transparent;
 }
 
-.activity {
+[class*="RaMenu-root"] a {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-
-  padding: 0.8125rem 0;
-  border-bottom: 1px solid #eeeeee;
+  min-height: 44px;
+  margin: 0.2rem 0;
+  border-radius: 6px;
+  color: var(--blanco);
+  transition: background-color 0.2s ease;
 }
 
-.activity:last-child {
-  border-bottom: none;
+[class*="RaMenu-root"] a:hover {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
-.activity-icon {
-  width: 2rem;
-  height: 2rem;
+[class*="RaMenu-root"] a[aria-current="page"] {
+  background-color: var(--verde-oscuro);
+  color: var(--blanco);
+  font-weight: 700;
+}
+
+[class*="RaMenu-root"] svg {
   flex-shrink: 0;
+}
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Encabezados de grupos del menú */
+[class*="RaMenu-root"] .MuiListSubheader-root {
+  padding: 1rem 0.75rem 0.4rem;
+  color: var(--dorado-claro);
+  background-color: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
-  border-radius: 50%;
-  background-color: #f4e9ed;
+/* ===================== BOTONES Y FORMULARIOS ===================== */
+
+.MuiButton-root {
+  min-height: 40px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.MuiButton-containedPrimary {
+  background-color: var(--guinda);
+}
+
+.MuiButton-containedPrimary:hover {
+  background-color: #491026;
+}
+
+/* Campos de texto */
+.MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--foco);
+  border-width: 2px;
+}
+
+/* ===================== TABLAS REACT-ADMIN ===================== */
+
+.MuiTableHead-root .MuiTableCell-root {
   color: var(--guinda);
-
-  font-size: 0.875rem;
+  font-weight: 700;
 }
 
-.activity-icon.warning {
-  background-color: #f5e5ea;
-  color: var(--rojo);
+.MuiTableBody-root .MuiTableRow-root:hover {
+  background-color: #f5e9ed;
 }
 
-.activity > div:nth-child(2) {
-  flex: 1;
-  min-width: 0;
+/* Mantener las barras de acciones en su flujo normal.
+   No aplicar position: fixed ni sticky globalmente. */
+main[class*="RaLayout-content"] .MuiToolbar-root {
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
-.activity strong {
-  display: block;
-  font-size: 0.75rem;
-  margin-bottom: 0.1875rem;
-}
-
-.activity span {
-  display: block;
-  font-size: 0.6875rem;
-  color: var(--gris);
-}
-
-.activity small {
-  flex-shrink: 0;
-  font-size: 0.625rem;
-  color: var(--gris);
-  white-space: nowrap;
-}
-
-/* ================= RESPONSIVE ================= */
-
-@media (max-width: 1100px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
+/* ===================== RESPONSIVE ===================== */
 
 @media (max-width: 650px) {
   :root {
-    --sidebar-w: 4.5rem;
     --header-h: 4rem;
+    --pad-page: 1rem;
   }
 
-  .sidebar-logo {
-    justify-content: center;
-    padding: 1rem 0.625rem;
+  body {
+    overflow-wrap: anywhere;
   }
 
-  .sidebar-logo > div:not(.logo-icon),
-  .nav-title,
-  .sidebar-footer > div:not(.security-icon) {
-    display: none;
+  th,
+  td {
+    padding: 0.625rem;
+  }
+}
+
+@media (max-width: 600px) {
+  header[class*="RaAppBar"] .MuiToolbar-root {
+    padding-inline: 0.75rem;
   }
 
-  .nav-item {
-    justify-content: center;
-    padding: 0.75rem 0.3125rem;
-    font-size: 0; /* oculta el texto, deja el icono */
+  [class*="RaMenu-root"] a {
+    min-height: 44px;
+  }
+}
+
+/* ===================== MOVIMIENTO REDUCIDO ===================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 
-  .nav-item span {
-    margin-right: 0;
-    font-size: 1rem;
-  }
-
-  .sidebar-footer {
-    justify-content: center;
-    padding: 1rem 0.5rem;
-  }
-
-  .welcome {
-    align-items: flex-start;
-  }
-
-  .date {
-    text-align: left;
+  [class*="RaMenu-root"] a {
+    transition: none;
   }
 }
