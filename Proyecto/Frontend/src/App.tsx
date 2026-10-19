@@ -2,6 +2,7 @@ import { Admin, Resource } from "react-admin";
 import Dashboard from "./pages/Dashboard";
 import { authProvider } from "./pages/AuthProvider";
 import { dataProvider } from "./dataProvider";
+import { TutoresList, TutoresCreate , TutoresShow} from "./pages/Tutores";
 import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
 import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
 import { SeguimientosCreate, SeguimientosEdit, SeguimientosList, SeguimientosShow } from "./pages/Seguimientos";
@@ -41,6 +42,13 @@ function App() {
       dashboard={Dashboard}
       layout={AppLayout}
     >
+      <Resource
+        name="tutores"
+        list={TutoresList}
+        create={TutoresCreate}
+        show={TutoresShow}
+        options={{ label: "Tutores" }}
+      />
       <Resource
         name="infantes"
         list={InfantesList}

@@ -56,6 +56,7 @@ export const authProvider: AuthProvider = {
     // Recursos disponibles para cada perfil.
     const permisos: Record<string, Record<string, string[]>> = {
       coordinador_regional: {
+        tutores: ["list", "show"],
         infantes: ["list", "show"],
         mediciones: ["list", "show"],
         seguimientos: ["list", "show"],
@@ -67,6 +68,7 @@ export const authProvider: AuthProvider = {
         ebdi: ["list", "show"],
       },
       estancia: {
+        tutores: ["list", "show"],
         infantes: ["list", "show", "create", "edit"],
         mediciones: ["list", "show", "create", "edit"],
         seguimientos: ["list", "show", "create", "edit"],

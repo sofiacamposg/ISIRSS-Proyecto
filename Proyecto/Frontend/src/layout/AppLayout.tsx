@@ -21,6 +21,7 @@ function AppMenu() {
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="crecimiento" />}
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="alertas" />}
       {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="reportes" />}
+      {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="tutores" />}
     </Menu>
   );
 }
