@@ -21,7 +21,7 @@ export default function Footer() {
       <nav aria-label="Enlaces del pie de página">
         <ul className="app-footer-links">
           <li><Link to="/aviso-de-privacidad">Aviso de privacidad</Link></li>
-          <li><Link to="/accesibilidad">Declaración de accesibilidad</Link></li>
+          <li><Link to="/preguntas-frecuentes">Preguntas frecuentes</Link></li>
           <li><Link to="/ayuda">Ayuda</Link></li>
         </ul>
       </nav>
