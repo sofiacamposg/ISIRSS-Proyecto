@@ -1,338 +1,83 @@
-/* ===================== VARIABLES ===================== */
+/* VARIABLES */
 
 :root {
   /* Identidad gráfica institucional */
   --guinda: #611232;
+  --guinda-hover: #491026;
   --rojo: #9b2247;
   --verde-oscuro: #002f2a;
   --verde: #1e5b4f;
   --dorado: #a57f2c;
   --dorado-claro: #e6d194;
 
-  /* Colores de interfaz */
-  --negro: #161a1d;
-  --gris: #5f6368;
+  /* Texto y fondos */
+  --negro: #161a1d;   
+  --gris-texto: #5f6368;
   --blanco: #ffffff;
   --gris-fondo: #f5f5f4;
-  --gris-borde: #d5d5d5;
+
+  /* Bordes */
+  --borde-control: #808080;
+  --borde-suave: #d5d5d5;
+
+  /* Foco */
   --foco: #005fcc;
+  --foco-sobre-oscuro: var(--dorado-claro);
 
-  /* Dimensiones */
-  --sidebar-w: clamp(13rem, 18vw, 16rem);
-  --header-h: 4.5rem;
-  --pad-page: clamp(1rem, 2.5vw, 1.875rem);
-  --gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  /* Estados (siempre acompañados de texto + ícono) */
+  --exito-texto: #1e5b4f;  --exito-fondo: #e3f1ed;   /* 6.78:1 */
+  --aviso-texto: #7a4a00;  --aviso-fondo: #fdf1d8;   /* 6.68:1 */
+  --alerta-texto: #9b2247; --alerta-fondo: #fbe9ec;  /* 6.62:1 */
+  --neutro-texto: #4d4d4d; --neutro-fondo: #f0f0f0;  /* 7.42:1 */
 
-  /* Tipografía */
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 100%;
-  color: var(--negro);
-  background-color: var(--gris-fondo);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  /* Accesibilidad: tamaño mínimo de elementos que se pueden tocar o hacer clic */
+  /* WCAG AAA: target size 44px mínimo */
+  --target-size: 44px;
 }
 
-/* ===================== REINICIO GLOBAL ===================== */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/* BASE */
 
 html {
-  min-width: 320px;
-  scroll-behavior: smooth;
-}
+  color: var(--negro);
+  background-color: var(--gris-fondo);
+  font-family: "Noto Sans", Arial, Helvetica, sans-serif;
+  font-size: 100%;
+} 
 
 body {
-  min-width: 320px;
-  min-height: 100vh;
-  min-height: 100dvh;
   margin: 0;
-  background-color: var(--gris-fondo);
-  color: var(--negro);
-  line-height: 1.5;
+  line-height: 1.5; /* WCAG requiere un minimo line height de al menos 1.5 veces el tamaño de la fuente para bloques de texto*/
+  min-width: 320px; /*WCAG requiere un minimo de 320px para el screen width para un responsive design sin forzar a usuarios a scrollear horizontalmente*/
 }
 
-#root {
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
+button, input, select, textarea {
+    font: inherit; /* evita que el navegador de la fuente default a los elementos */
 }
 
 img,
 svg {
   max-width: 100%;
+  height: auto;
 }
 
-input,
-select,
-textarea {
-  max-width: 100%;
+input, select, textarea, button {
+    accent-color: var(--guinda);
 }
 
-input,
-select,
-textarea,
-button {
-  accent-color: var(--guinda);
-}
+/* ACCESSIBILIDAD */
 
-/* ===================== ACCESIBILIDAD ===================== */
-
-/* Indicador visible al navegar con teclado */
 :focus-visible {
-  outline: 3px solid var(--foco);
-  outline-offset: 3px;
+  outline: 3px solid var(--foco) !important;
+  outline-offset: -4px !important;
 }
 
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[role="button"]:focus-visible {
-  outline: 3px solid var(--foco);
-  outline-offset: 3px;
+/* Subrayado de enlaces */
+a{
+   color: var(--guinda);
+   text-decoration: underline;
+   text-underline-offset: 0.2em;
 }
 
-/* Enlaces */
-a {
-  color: var(--guinda);
-  text-underline-offset: 0.18em;
-}
-
-a:hover {
-  text-decoration-thickness: 2px;
-}
-
-/* ===================== TABLAS GENERALES ===================== */
-
-table {
-  max-width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--gris-borde);
-  text-align: left;
-}
-
-th {
-  color: var(--guinda);
-  font-weight: 700;
-}
-
-tbody tr:hover {
-  background-color: #f5e9ed;
-}
-
-/* Contenedores adaptables */
-.dashboard,
-.content,
-.panel,
-.table-container {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.table-container,
-.MuiTableContainer-root {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/* ===================== ESTRUCTURA REACT-ADMIN ===================== */
-
-/* Fondo del área de trabajo */
-[class*="RaLayout-root"] {
-  min-height: 100vh;
-  background-color: var(--gris-fondo);
-}
-
-main[class*="RaLayout-content"] {
-  min-width: 0;
-  background-color: var(--gris-fondo);
-}
-
-/* No imponer position: fixed o sticky al encabezado.
-   React-Admin controla el comportamiento del layout. */
-header[class*="RaAppBar"] {
-  z-index: 10;
-  width: 100%;
-  background-color: var(--blanco);
-  color: var(--guinda);
-  border-bottom: 3px solid var(--guinda);
-}
-
-header[class*="RaAppBar"] .MuiToolbar-root {
-  min-height: var(--header-h);
-}
-
-header[class*="RaAppBar"] h1,
-header[class*="RaAppBar"] h2,
-header[class*="RaAppBar"] h3 {
-  color: var(--guinda);
-  font-weight: 700;
-}
-
-/* ===================== BARRA LATERAL ===================== */
-
-/* Aplicar el fondo al contenedor y al panel real del drawer.
-   No se modifica su posición ni su comportamiento de scroll. */
-[class*="RaLayout-sidebar"],
-[class*="RaSidebar-root"],
-[class*="RaSidebar-fixed"],
-[class*="RaSidebar-docked"] {
-  background-color: var(--guinda);
-  background-image: none;
-  color: var(--blanco);
-}
-
-[class*="RaLayout-sidebar"] .MuiDrawer-paper,
-[class*="RaSidebar-root"] .MuiDrawer-paper,
-.MuiDrawer-paper {
-  background-color: var(--guinda);
-  background-image: none;
-  color: var(--blanco);
-}
-
-/* Menú */
-[class*="RaMenu-root"] {
-  padding: 0.75rem 0.5rem;
-  background-color: transparent;
-}
-
-[class*="RaMenu-root"] a {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  margin: 0.2rem 0;
-  border-radius: 6px;
-  color: var(--blanco);
-  transition: background-color 0.2s ease;
-}
-
-[class*="RaMenu-root"] a:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-[class*="RaMenu-root"] a[aria-current="page"] {
-  background-color: var(--verde-oscuro);
-  color: var(--blanco);
-  font-weight: 700;
-}
-
-[class*="RaMenu-root"] svg {
-  flex-shrink: 0;
-}
-
-/* Encabezados de grupos del menú */
-[class*="RaMenu-root"] .MuiListSubheader-root {
-  padding: 1rem 0.75rem 0.4rem;
-  color: var(--dorado-claro);
-  background-color: transparent;
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.5;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* ===================== BOTONES Y FORMULARIOS ===================== */
-
-.MuiButton-root {
-  min-height: 40px;
-  border-radius: 6px;
-  font-weight: 700;
-}
-
-.MuiButton-containedPrimary {
-  background-color: var(--guinda);
-}
-
-.MuiButton-containedPrimary:hover {
-  background-color: #491026;
-}
-
-/* Campos de texto */
-.MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--foco);
-  border-width: 2px;
-}
-
-/* ===================== TABLAS REACT-ADMIN ===================== */
-
-.MuiTableHead-root .MuiTableCell-root {
-  color: var(--guinda);
-  font-weight: 700;
-}
-
-.MuiTableBody-root .MuiTableRow-root:hover {
-  background-color: #f5e9ed;
-}
-
-/* Mantener las barras de acciones en su flujo normal.
-   No aplicar position: fixed ni sticky globalmente. */
-main[class*="RaLayout-content"] .MuiToolbar-root {
-  box-sizing: border-box;
-  max-width: 100%;
-}
-
-/* ===================== RESPONSIVE ===================== */
-
-@media (max-width: 650px) {
-  :root {
-    --header-h: 4rem;
-    --pad-page: 1rem;
-  }
-
-  body {
-    overflow-wrap: anywhere;
-  }
-
-  th,
-  td {
-    padding: 0.625rem;
-  }
-}
-
-@media (max-width: 600px) {
-  header[class*="RaAppBar"] .MuiToolbar-root {
-    padding-inline: 0.75rem;
-  }
-
-  [class*="RaMenu-root"] a {
-    min-height: 44px;
-  }
-}
-
-/* ===================== MOVIMIENTO REDUCIDO ===================== */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-
-  [class*="RaMenu-root"] a {
-    transition: none;
-  }
+a:hover{
+    text-decoration-thickness: 2px;
 }

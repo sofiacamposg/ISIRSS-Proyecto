@@ -1,7 +1,9 @@
-import { Admin, Resource } from "react-admin";
+import { Admin, Resource, defaultTheme } from "react-admin";
 import Dashboard from "./pages/Dashboard";
 import { authProvider } from "./pages/AuthProvider";
 import { dataProvider } from "./dataProvider";
+import polyglotI18nProvider from "ra-i18n-polyglot";
+import spanishMessages from "@blackbox-vision/ra-language-spanish";
 import { TutoresList, TutoresCreate , TutoresShow} from "./pages/Tutores";
 import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
 import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
@@ -33,10 +35,29 @@ const accessControlProvider = {
   },
 };
 
+const tema = {
+  ...defaultTheme, // copia del tema original, "..." (spread) copian propiedades de un objeto, los utilizamos para conservar todo lo del tema original y cambair solo la fuente
+  palette: {
+    ...defaultTheme.palette,
+    background: {
+      ...defaultTheme.palette?.background, // if palette exists, go to background
+      default: "#f5f5f4",
+    },
+  },
+  typography: {
+    ...defaultTheme.typography, // copia de la tipografía original
+    fontFamily: '"Noto Sans", Arial, Helvetica, sans-serif', // cambio de fuente a Noto Sans
+  },
+};
+
+const i18nProvider = polyglotI18nProvider(() => spanishMessages, "es");
+
 function App() {
   return (
     <Admin
       title="Plataforma de Crecimiento y Desarrollo Saludable"
+      theme={tema}
+      i18nProvider={i18nProvider}
       dataProvider={dataProvider}
       authProvider={authProvider}
       dashboard={Dashboard}
