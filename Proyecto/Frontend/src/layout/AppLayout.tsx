@@ -1,6 +1,12 @@
 import { Layout, type LayoutProps, Menu, usePermissions } from "react-admin";
 //Icon
 import { HomeOutlined } from "@mui/icons-material";
+//Header y Footer
+import Header from "../components/Header";
+import { Box } from "@mui/material";
+import Footer from "../components/Footer";
+import type { ReactNode } from "react";
+
 
 function AppMenu() {
   const { permissions, isLoading } = usePermissions();
@@ -33,5 +39,14 @@ function AppMenu() {
 }
 
 export default function AppLayout(props: LayoutProps) {
-  return <Layout {...props} menu={AppMenu} />;
+  return (
+    <>
+      <Layout
+        {...props}
+        appBar={Header}
+        menu={AppMenu}
+      />
+      <Footer />
+    </>
+  );
 }
