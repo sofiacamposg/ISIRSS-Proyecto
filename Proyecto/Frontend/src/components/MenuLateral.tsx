@@ -87,7 +87,9 @@ export function MenuLateral() {
             <Menu.Item to="/" primaryText="Inicio" leftIcon={<HomeOutlined />} />
             {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="infantes" />}
             {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="mediciones" />}
+            {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="condiciones" options={{ label: "Condiciones de Salud" }} />}
             {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="seguimientos" options={{ label: "Seguimiento nutricional" }} />}
+            {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="acciones_seguimiento" options={{ label: "Acciones a Seguimientos" }} />}
             {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="crecimiento" />}
 
             {(esAdmin || esEstancia || esCoordinador) && <Categoria>Gestión</Categoria>}

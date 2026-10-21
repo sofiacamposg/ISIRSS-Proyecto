@@ -27,18 +27,11 @@ const ARGON2_OPTIONS = {
 
 //Creates a MySQL connection pool
 const pool = mysql.createPool({
-    host: '172.23.192.1',
+    host: '127.0.0.1',
     user: 'root',
-    password: '12042203Y@yo',
+    password: 'bl200611',
     database: 'issste_padron'
 }).promise();
-
-//clave para firmar los tokens
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-    throw new Error("Falta configurar la variable de entorno JWT_SECRET.");
-}
 
 //clave para firmar los tokens
 const JWT_SECRET = process.env.JWT_SECRET;
