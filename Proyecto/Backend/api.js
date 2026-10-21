@@ -20,11 +20,18 @@ app.use(bodyParser.json());
 
 //Creates a MySQL connection pool
 const pool = mysql.createPool({
-    host: '127.0.0.1',
+    host: '172.23.192.1',
     user: 'root',
-    password: 'Cinamoroll25.',
+    password: '12042203Y@yo',
     database: 'issste_padron'
 }).promise();
+
+//clave para firmar los tokens
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+    throw new Error("Falta configurar la variable de entorno JWT_SECRET.");
+}
 
 // async function getList(collection, columnas, req, res) {
 //     let sortBy = req.query._sort || "id";
@@ -1815,39 +1822,694 @@ app.post("/registrarse", async (req, res) => {
     }
 });
 
+
+
+function autenticarUsuario(req, res, next) {
+    const encabezado = req.headers.authorization;
+
+    if (!encabezado || !encabezado.startsWith("Bearer ")) {
+        return res.status(401).json({
+            mensaje: "Se requiere iniciar sesión."
+        });
+    }
+
+    const token = encabezado.substring(7);
+
+    try {
+        const datos = jwt.verify(token, JWT_SECRET);
+
+        req.usuario = {
+            id_usuario: datos.id_usuario,
+            correo: datos.correo,
+            rol: datos.rol
+        };
+
+        next();
+    } catch (error) {
+        return res.status(401).json({
+            mensaje: "El token es inválido o ha expirado."
+        });
+    }
+}
+
+ // demo
+
 app.post("/login", async (req, res) => {
     try {
-        let user = req.body.username;
-        let pass = req.body.password;
+        const { correo, password } = req.body;
 
-        let [data] = await pool.execute(
-            "SELECT id, usuario, password FROM usuarios WHERE usuario = ?",
-            [user]
+        if (
+            typeof correo !== "string" ||
+            typeof password !== "string" ||
+            !correo.trim() ||
+            !password
+        ) {
+            return res.status(400).json({
+                mensaje: "El correo y la contraseña son obligatorios."
+            });
+        }
+
+        const [usuarios] = await pool.execute(
+            `SELECT
+                u.id_usuario,
+                u.nombre,
+                u.correo,
+                u.password_hash,
+                u.id_rol,
+                u.estado,
+                r.nombre AS rol
+             FROM usuarios u
+             INNER JOIN roles r ON r.id_rol = u.id_rol
+             WHERE u.correo = ?
+             LIMIT 1`,
+            [correo.trim()]
         );
 
-        if (data.length === 0) {
-            return res.sendStatus(401);
-        }
-
-        if (await argon2.verify(data[0].password, pass)) {
-            let token = jwt.sign(
-                { usuario: data[0].usuario },
-                "llavesecreta",
-                { expiresIn: 900 }
-            );
-
-            res.json({
-                token: token,
-                id: data[0].usuario
+        if (usuarios.length === 0) {
+            return res.status(401).json({
+                mensaje: "Credenciales incorrectas."
             });
-        } else {
-            res.sendStatus(401);
         }
+
+        const usuario = usuarios[0];
+
+        // Comprobación temporal sin cifrado.
+        // Solo funciona si el valor recibido coincide exactamente
+        // con el valor almacenado en password_hash.
+        if (password !== usuario.password_hash) {
+            return res.status(401).json({
+                mensaje: "Credenciales incorrectas."
+            });
+        }
+
+        if (usuario.estado !== "activo") {
+            return res.status(403).json({
+                mensaje: "La cuenta no está activa."
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                id_usuario: usuario.id_usuario,
+                correo: usuario.correo,
+                rol: usuario.rol
+            },
+            JWT_SECRET,
+            { expiresIn: "8h" }
+        );
+
+        return res.json({
+            mensaje: "Inicio de sesión correcto.",
+            usuario: {
+                id_usuario: usuario.id_usuario,
+                nombre: usuario.nombre,
+                correo: usuario.correo,
+                id_rol: usuario.id_rol,
+                rol: usuario.rol
+            }
+        });
+
     } catch (error) {
-        res.sendStatus(500);
+        console.error("Error en POST /login:", error);
+
+        return res.status(500).json({
+            mensaje: "Error interno del servidor."
+        });
     }
 });
 
+app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
+    try {
+        const idUsuario = req.usuario.id_usuario;
+
+        const [usuarios] = await pool.execute(
+            `SELECT
+                id_usuario,
+                nombre,
+                correo,
+                id_rol,
+                estado
+             FROM usuarios
+             WHERE id_usuario = ?
+             LIMIT 1`,
+            [idUsuario]
+        );
+
+        if (usuarios.length === 0) {
+            return res.status(404).json({
+                mensaje: "El usuario ya no existe."
+            });
+        }
+
+        if (usuarios[0].estado !== "activo") {
+            return res.status(403).json({
+                mensaje: "La cuenta no está activa."
+            });
+        }
+
+        return res.json({
+            id_usuario: usuarios[0].id_usuario,
+            nombre: usuarios[0].nombre,
+            correo: usuarios[0].correo,
+            id_rol: usuarios[0].id_rol
+        });
+    } catch (error) {
+        console.error("Error en GET /usuario-actual:", error);
+
+        return res.status(500).json({
+            mensaje: "Error al consultar el usuario actual."
+        });
+    }
+});
+
+// Ejecutar una revisión al iniciar el servidor.
+detectarMedicionesPendientes()
+    .then(resultado => {
+        console.log("Revisión inicial:", resultado);
+    })
+    .catch(error => {
+        console.error("Error en la revisión inicial:", error);
+    });
+
+// Ejecutar la revisión cada 24 horas.
+const UN_DIA = 24 * 60 * 60 * 1000;
+
+setInterval(async () => {
+    try {
+        const resultado = await detectarMedicionesPendientes();
+        console.log("Revisión automática:", resultado);
+    } catch (error) {
+        console.error("Error en la revisión automática:", error);
+    }
+}, UN_DIA);
+
 app.listen(PORT, async () => {
     console.log("Backend corriendo en puerto 3000");
+});
+
+
+app.get("/alertas", async (req, res) => {
+    try {
+        // Paginación solicitada por React-Admin
+        const inicio = Math.max(
+            0,
+            Number.parseInt(req.query._start, 10) || 0
+        );
+        const finSolicitado = Number.parseInt(req.query._end, 10);
+        const fin = Number.isFinite(finSolicitado) ? Math.max(inicio, finSolicitado) : inicio + 25;
+        const limite = Math.min(fin - inicio, 100);
+        // Solo permitimos ordenar por columnas conocidas
+        const columnasOrdenables = {
+            id: "a.id_alerta",
+            id_alerta: "a.id_alerta",
+            tipo: "a.tipo",
+            estado: "a.estado",
+            creada_en: "a.creada_en",
+        };
+        const sortSolicitado = req.query._sort || "creada_en";
+        const sortBy = columnasOrdenables[sortSolicitado] || "a.creada_en";
+        const sortOrder = String(req.query._order).toUpperCase() === "ASC" ? "ASC" : "DESC";
+        // Consultar alertas y nombre del infante
+        const [data] = await pool.execute(
+            `SELECT
+                a.id_alerta AS id,
+                a.id_alerta,
+                a.id_infante,
+                a.id_evaluacion,
+                a.tipo,
+                a.mensaje,
+                a.estado,
+                a.creada_en,
+                CONCAT_WS(
+                    ' ',
+                    i.nombre,
+                    i.apellido_paterno,
+                    i.apellido_materno
+                ) AS nombre_completo
+             FROM alertas a
+             INNER JOIN infantes i
+                ON i.id_infante = a.id_infante
+             ORDER BY ${sortBy} ${sortOrder}
+             LIMIT ? OFFSET ?`,
+            [limite, inicio]
+        );
+        // Total de alertas para la paginación
+        const [total] = await pool.execute("SELECT COUNT(*) AS total FROM alertas");
+        res.set("Access-Control-Expose-Headers", "X-Total-Count");
+        res.set("X-Total-Count", String(total[0].total));
+        res.json(data);
+    } catch (error) {
+        console.error("Error al consultar alertas:", error);
+        res.status(500).json({
+            error: "Error al consultar las alertas",
+        });
+    }
+});
+
+async function detectarMedicionesPendientes() {
+    // Buscar infantes sin mediciones o con más de 45 días.
+    const [infantesPendientes] = await pool.execute(`
+        SELECT
+            i.id_infante,
+            CONCAT_WS(
+                ' ',
+                i.nombre,
+                i.apellido_paterno,
+                i.apellido_materno
+            ) AS nombre_completo,
+            DATE_FORMAT(MAX(m.fecha_medicion), '%Y-%m-%d') AS ultima_medicion,
+            DATEDIFF(CURDATE(), MAX(m.fecha_medicion)) AS dias_transcurridos
+        FROM infantes i
+        LEFT JOIN mediciones_vigentes m
+            ON m.id_infante = i.id_infante
+        GROUP BY
+            i.id_infante,
+            i.nombre,
+            i.apellido_paterno,
+            i.apellido_materno
+        HAVING
+            MAX(m.fecha_medicion) IS NULL
+            OR DATEDIFF(CURDATE(), MAX(m.fecha_medicion)) > 45
+    `);
+    let creadas = 0;
+    let omitidas = 0;
+    for (const infante of infantesPendientes) {
+        // Solo evitar duplicar alertas que sigan pendientes.
+        const [existentes] = await pool.execute(
+            `SELECT id_alerta
+             FROM alertas
+             WHERE id_infante = ?
+               AND tipo = 'medicion_pendiente'
+               AND estado = 'pendiente'
+               AND (
+                    ? IS NULL
+                    OR DATE(creada_en) > ?
+               )
+             LIMIT 1`,
+            [
+                infante.id_infante,
+                infante.ultima_medicion,
+                infante.ultima_medicion
+            ]
+        );
+        if (existentes.length > 0) {
+            omitidas++;
+            continue;
+        }
+        let mensaje;
+        if (!infante.ultima_medicion) {
+            mensaje = "No hay mediciones registradas para este infante.";
+        } else {
+            mensaje = `Han transcurrido ${infante.dias_transcurridos} días ` + `desde la última medición (${infante.ultima_medicion}).`;
+        }
+        await pool.execute(
+            `INSERT INTO alertas (
+                id_infante,
+                id_evaluacion,
+                tipo,
+                mensaje,
+                estado
+            ) VALUES (?, NULL, 'medicion_pendiente', ?, 'pendiente')`,
+            [
+                infante.id_infante,
+                mensaje
+            ]
+        );
+        creadas++;
+    }
+    return {
+        mensaje: "Detección de mediciones pendientes finalizada.",
+        infantesRevisados: infantesPendientes.length,
+        alertasCreadas: creadas,
+        alertasOmitidas: omitidas
+    };
+}
+
+app.post("/alertas/detectar-mediciones-pendientes", async (req, res) => {
+    try {
+        const resultado = await detectarMedicionesPendientes();
+        res.json(resultado);
+    } catch (error) {
+        console.error("Error al detectar mediciones pendientes:", error);
+        res.status(500).json({
+            error: "No se pudieron detectar las mediciones pendientes."
+        });
+    }
+});
+app.get("/usuarios", async (req, res) => {
+    try {
+        const inicio = Math.max(0, Number(req.query._start) || 0);
+        const fin = Number(req.query._end) || 10;
+        const limite = Math.max(1, Math.min(fin - inicio, 100));
+        const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+        const columnasPermitidas = [
+            "id_usuario",
+            "nombre",
+            "correo",
+            "id_rol",
+            "estado",
+            "creado_en"
+        ];
+        const sortSolicitado = String(req.query._sort || "id_usuario");
+        const sortBy = columnasPermitidas.includes(sortSolicitado) ? sortSolicitado : "id_usuario";
+        const [usuarios] = await pool.execute(
+            `SELECT
+                u.id_usuario AS id,
+                u.id_usuario,
+                u.nombre,
+                u.correo,
+                u.id_rol,
+                r.nombre AS rol,
+                u.estado,
+                u.creado_en
+             FROM usuarios u
+             INNER JOIN roles r ON r.id_rol = u.id_rol
+             ORDER BY u.\`${sortBy}\` ${sortOrder}
+             LIMIT ? OFFSET ?`,
+            [limite, inicio]
+        );
+        const [total] = await pool.execute("SELECT COUNT(*) AS total FROM usuarios");
+        res.set("Access-Control-Expose-Headers", "X-Total-Count");
+        res.set("X-Total-Count", String(total[0].total));
+        // Nunca enviar password_hash al frontend.
+        res.json(usuarios);
+    } catch (error) {
+        console.error("Error en GET /usuarios:", error);
+        res.status(500).json({
+            mensaje: "Error al consultar usuarios."
+        });
+    }
+});
+
+app.get("/roles", async (req, res) => {
+    try {
+        const inicio = Math.max(0, Number(req.query._start) || 0);
+        const fin = Number(req.query._end) || 100;
+        const limite = Math.max(1, Math.min(fin - inicio, 100));
+        const [roles] = await pool.execute(
+            `SELECT
+                id_rol AS id,
+                id_rol,
+                nombre
+             FROM roles
+             ORDER BY nombre ASC
+             LIMIT ? OFFSET ?`,
+            [limite, inicio]
+        );
+        const [total] = await pool.execute("SELECT COUNT(*) AS total FROM roles");
+        res.set("Access-Control-Expose-Headers", "X-Total-Count");
+        res.set("X-Total-Count", String(total[0].total));
+        res.json(roles);
+    } catch (error) {
+        console.error("Error en GET /roles:", error);
+        res.status(500).json({
+            mensaje: "Error al consultar roles."
+        });
+    }
+});
+
+app.post("/usuarios", async (req, res) => {
+    try {
+        const { nombre, correo, password, id_rol, estado } = req.body;
+        if ( typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || typeof password !== "string" || !password || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0) {
+            return res.status(400).json({
+                mensaje: "Nombre, correo, contraseña y rol son obligatorios."
+            });
+        }
+        const nombreLimpio = nombre.trim();
+        const correoLimpio = correo.trim().toLowerCase();
+        const estadoFinal = estado ?? "activo";
+        if (nombreLimpio.length > 150 || correoLimpio.length > 254) {
+            return res.status(400).json({
+                mensaje: "El nombre o el correo excede la longitud permitida."
+            });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
+            return res.status(400).json({
+                mensaje: "El correo electrónico no tiene un formato válido."
+            });
+        }
+        if (!["activo", "bloqueado", "baja"].includes(estadoFinal)) {
+            return res.status(400).json({
+                mensaje: "El estado indicado no es válido."
+            });
+        }
+        const [roles] = await pool.execute(
+            "SELECT id_rol FROM roles WHERE id_rol = ?",
+            [Number(id_rol)]
+        );
+        if (roles.length === 0) {
+            return res.status(400).json({
+                mensaje: "El rol seleccionado no existe."
+            });
+        }
+        const [existentes] = await pool.execute(
+            "SELECT id_usuario FROM usuarios WHERE correo = ?",
+            [correoLimpio]
+        );
+        if (existentes.length > 0) {
+            return res.status(409).json({
+                mensaje: "Ya existe un usuario registrado con ese correo."
+            });
+        }
+        // Temporal: se guarda el valor directamente, sin hash.
+        // Sustituir por un algoritmo seguro antes de usar en producción.
+        const [resultado] = await pool.execute(
+            `INSERT INTO usuarios
+                (nombre, correo, password_hash, id_rol, estado)
+             VALUES (?, ?, ?, ?, ?)`,
+            [
+                nombreLimpio,
+                correoLimpio,
+                password,
+                Number(id_rol),
+                estadoFinal
+            ]
+        );
+        const [nuevoUsuario] = await pool.execute(
+            `SELECT
+                u.id_usuario AS id,
+                u.id_usuario,
+                u.nombre,
+                u.correo,
+                u.id_rol,
+                r.nombre AS rol,
+                u.estado,
+                u.creado_en
+             FROM usuarios u
+             INNER JOIN roles r ON r.id_rol = u.id_rol
+             WHERE u.id_usuario = ?`,
+            [resultado.insertId]
+        );
+        return res.status(201).json(nuevoUsuario[0]);
+    } catch (error) {
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+                mensaje: "Ya existe un usuario registrado con ese correo."
+            });
+        }
+        console.error("Error en POST /usuarios:", error);
+        return res.status(500).json({
+            mensaje: "Error interno al crear el usuario."
+        });
+    }
+});
+
+
+app.get("/usuarios/:id", async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            return res.status(400).json({
+                mensaje: "El ID del usuario no es válido."
+            });
+        }
+
+        const [usuarios] = await pool.execute(
+            `SELECT
+                u.id_usuario AS id,
+                u.id_usuario,
+                u.nombre,
+                u.correo,
+                u.id_rol,
+                r.nombre AS rol,
+                u.estado,
+                u.creado_en
+             FROM usuarios u
+             INNER JOIN roles r ON r.id_rol = u.id_rol
+             WHERE u.id_usuario = ?
+             LIMIT 1`,
+            [id]
+        );
+
+        if (usuarios.length === 0) {
+            return res.status(404).json({
+                mensaje: "El usuario no existe."
+            });
+        }
+
+        return res.json(usuarios[0]);
+    } catch (error) {
+        console.error("Error en GET /usuarios/:id:", error);
+
+        return res.status(500).json({
+            mensaje: "Error al consultar el usuario."
+        });
+    }
+});
+
+
+app.put("/usuarios/:id", async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            return res.status(400).json({
+                mensaje: "El ID del usuario no es válido."
+            });
+        }
+
+        const {
+            nombre,
+            correo,
+            password,
+            id_rol,
+            estado
+        } = req.body;
+
+        if (
+            typeof nombre !== "string" ||
+            !nombre.trim() ||
+            typeof correo !== "string" ||
+            !correo.trim() ||
+            !Number.isInteger(Number(id_rol)) ||
+            Number(id_rol) <= 0 ||
+            !["activo", "bloqueado", "baja"].includes(estado)
+        ) {
+            return res.status(400).json({
+                mensaje: "Verifica el nombre, correo, rol y estado."
+            });
+        }
+
+        const nombreLimpio = nombre.trim();
+        const correoLimpio = correo.trim().toLowerCase();
+
+        if (nombreLimpio.length > 150 || correoLimpio.length > 254) {
+            return res.status(400).json({
+                mensaje: "El nombre o correo excede la longitud permitida."
+            });
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
+            return res.status(400).json({
+                mensaje: "El correo no tiene un formato válido."
+            });
+        }
+
+        if (
+            password !== undefined &&
+            (typeof password !== "string" || password.length === 0)
+        ) {
+            return res.status(400).json({
+                mensaje: "Si proporcionas una contraseña, no puede estar vacía."
+            });
+        }
+
+        const [usuarios] = await pool.execute(
+            "SELECT id_usuario FROM usuarios WHERE id_usuario = ?",
+            [id]
+        );
+
+        if (usuarios.length === 0) {
+            return res.status(404).json({
+                mensaje: "El usuario no existe."
+            });
+        }
+
+        const [roles] = await pool.execute(
+            "SELECT id_rol FROM roles WHERE id_rol = ?",
+            [Number(id_rol)]
+        );
+
+        if (roles.length === 0) {
+            return res.status(400).json({
+                mensaje: "El rol seleccionado no existe."
+            });
+        }
+
+        const [duplicados] = await pool.execute(
+            `SELECT id_usuario
+             FROM usuarios
+             WHERE correo = ? AND id_usuario <> ?`,
+            [correoLimpio, id]
+        );
+
+        if (duplicados.length > 0) {
+            return res.status(409).json({
+                mensaje: "Ese correo ya está registrado por otro usuario."
+            });
+        }
+
+        if (password !== undefined) {
+            // Temporal: sin hash, igual que el endpoint de creación actual.
+            await pool.execute(
+                `UPDATE usuarios
+                 SET nombre = ?, correo = ?, id_rol = ?,
+                     estado = ?, password_hash = ?
+                 WHERE id_usuario = ?`,
+                [
+                    nombreLimpio,
+                    correoLimpio,
+                    Number(id_rol),
+                    estado,
+                    password,
+                    id
+                ]
+            );
+        } else {
+            await pool.execute(
+                `UPDATE usuarios
+                 SET nombre = ?, correo = ?, id_rol = ?, estado = ?
+                 WHERE id_usuario = ?`,
+                [
+                    nombreLimpio,
+                    correoLimpio,
+                    Number(id_rol),
+                    estado,
+                    id
+                ]
+            );
+        }
+
+        const [actualizados] = await pool.execute(
+            `SELECT
+                u.id_usuario AS id,
+                u.id_usuario,
+                u.nombre,
+                u.correo,
+                u.id_rol,
+                r.nombre AS rol,
+                u.estado,
+                u.creado_en
+             FROM usuarios u
+             INNER JOIN roles r ON r.id_rol = u.id_rol
+             WHERE u.id_usuario = ?`,
+            [id]
+        );
+
+        return res.json(actualizados[0]);
+    } catch (error) {
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+                mensaje: "Ese correo ya está registrado."
+            });
+        }
+
+        console.error("Error en PUT /usuarios/:id:", error);
+
+        return res.status(500).json({
+            mensaje: "Error interno al actualizar el usuario."
+        });
+    }
 });

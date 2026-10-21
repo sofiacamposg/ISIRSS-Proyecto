@@ -12,6 +12,7 @@ import { RegionesList, RegionesCreate, RegionesEdit, RegionesShow, EstadosList, 
 import { CrecimientoPage } from "./pages/Crecimiento";
 import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
+import { UsuariosList, UsuarioCreate, UsuarioEdit } from "./pages/Usuarios";
 import AppLayout from "./layout/AppLayout";
 //Icons
 import {
@@ -184,6 +185,12 @@ function App() {
         show={EBDIsShow}
         options={{ label: "EBDI" }}
         icon={ApartmentOutlined}
+      />
+      <Resource
+        name="usuarios"
+        list={UsuariosList}
+        create={UsuarioCreate}
+        edit={UsuarioEdit}
       />
     </Admin>
   );

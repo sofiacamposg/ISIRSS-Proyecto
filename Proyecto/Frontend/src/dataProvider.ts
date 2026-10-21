@@ -6,6 +6,11 @@ const fetchJsonUtil=(url:string, options:fetchUtils.Options={})=>{
         options.headers= new Headers({Accept: "application/json"});
     }
     options.headers.set("Authentication", sessionStorage.getItem("auth"))
+
+    const token = localStorage.getItem("token");
+    if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+    }
     return fetchUtils.fetchJson(url, options);
 };
 
