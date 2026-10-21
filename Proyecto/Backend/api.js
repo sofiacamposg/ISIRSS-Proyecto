@@ -27,9 +27,9 @@ const ARGON2_OPTIONS = {
 
 //Creates a MySQL connection pool
 const pool = mysql.createPool({
-    host: '172.23.192.1',
+    host: '127.0.0.1',
     user: 'root',
-    password: '12042203Y@yo',
+    password: 'bl200611',
     database: 'issste_padron'
 }).promise();
 
@@ -40,37 +40,7 @@ if (!JWT_SECRET) {
     throw new Error("Falta configurar la variable de entorno JWT_SECRET.");
 }
 
-// async function getList(collection, columnas, req, res) {
-//     let sortBy = req.query._sort || "id";
-//     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-//     let inicio = Number(req.query._start) || 0;
-//     let fin = Number(req.query._end) || 10;
-//     let limite = Math.max(0, fin - inicio);
-
-//     // Validar la columna por la que se ordenará
-//     if (!columnas.includes(sortBy)) {
-//         sortBy = "id";
-//     }
-
-//     // Consultar registros
-//     let [data] = await pool.execute(
-//         `SELECT * FROM \`${collection}\`
-//         ORDER BY \`${sortBy}\` ${sortOrder}
-//         LIMIT ? OFFSET ?`,
-//         [limite, inicio]
-//     );
-
-//     // Consultar total de registros
-//     let [total] = await pool.execute(
-//         `SELECT COUNT(*) AS total FROM \`${collection}\``
-//     );
-
-//     // Enviar total para la paginación de React Admin
-//     res.set("Access-Control-Expose-Headers", "X-Total-Count");
-//     res.set("X-Total-Count", String(total[0].total));
-//     res.json(data);
-// }
-
+//Funciones de referencia------------------------------------------------------------------------------------
 async function getMany(collection, req, res) {
     let ids = req.query.id;
 
@@ -203,12 +173,12 @@ async function createData(collection, req, res) {
 
 app.get("/tutores", async (req, res) => {
     try {
-        let sortBy = req.query._sort || "id";
+        let sortBy;
         let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
-        let inicio = Math.max(0, Number(req.query._start) || 0);
+        let inicio = Number(req.query._start) || 0;
         let fin = Number(req.query._end) || 10;
-        let limite = Math.max(0, fin - inicio);
+        let limite = fin - inicio;
 
         const columnas = [
             "id",
@@ -333,7 +303,7 @@ async function getListInfantes(collection, req, res) {
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
-    let limite = Math.max(0, fin - inicio);
+    let limite = fin - inicio;
 
     // Validar la columna por la que se ordenará
     if (true) {
@@ -414,6 +384,7 @@ async function getListInfantes(collection, req, res) {
 app.get("/infantes", async (req, res) => {
     try {
         let token = req.get("Authentication");
+        console.log("Token recibido:", token);
         // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
@@ -938,7 +909,7 @@ async function getListRegiones(collection, req, res) {
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
-    let limite = Math.max(0, fin - inicio);
+    let limite = fin - inicio;
 
     // Validar la columna por la que se ordenará
     if (true) {
@@ -1022,7 +993,7 @@ async function getListEstados(collection, req, res) {
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
-    let limite = Math.max(0, fin - inicio);
+    let limite = fin - inicio;
 
     // Validar la columna por la que se ordenará
     if (true) {
@@ -1107,7 +1078,7 @@ async function getListEbdi(collection, req, res) {
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
-    let limite = Math.max(0, fin - inicio);
+    let limite = fin - inicio;
 
     // Validar la columna por la que se ordenará
     if (true) {
@@ -1206,7 +1177,7 @@ async function getListMediciones(collection, req, res) {
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
-    let limite = Math.max(0, fin - inicio);
+    let limite = fin - inicio;
 
     // Validar la columna por la que se ordenará
     if (true) {
@@ -1468,14 +1439,23 @@ async function getOneMedicion(collection, id, req, res) {
             m.id_medicion AS id,
             m.id_medicion,
             m.id_infante,
+            m.id_ebdi_captura,
+            m.id_version,
+            m.numero_version,
             m.fecha_medicion,
+            m.fecha_nacimiento_utilizada,
+            m.sexo_patron_utilizado,
+            m.edad_dias,
             m.peso_kg,
             m.talla_cm,
+            m.tipo_talla,
             m.perimetro_cefalico_cm,
-            m.observaciones
-
+            m.tipo,
+            m.motivo_extraordinaria,
+            m.observaciones,
+            m.estado_nutricional_registrado,
+            m.motivo_correccion
         FROM mediciones_vigentes m
-
         WHERE m.id_medicion = ?`,
         [id]
     );
@@ -1496,48 +1476,359 @@ app.get("/mediciones/:id", async (req, res) => {
     }
 });
 
+
+async function updateMedicion(req, res) {
+    const id_medicion = Number(req.params.id);
+    const usuarioId = 1; // Temporal, mientras se implementa la autenticación real.
+
+    const {
+        fecha_medicion,
+        peso_kg,
+        talla_cm,
+        tipo_talla,
+        perimetro_cefalico_cm,
+        tipo,
+        motivo_extraordinaria,
+        observaciones,
+        motivo_correccion
+    } = req.body;
+
+    //Validaciones iniciales
+    if (!Number.isInteger(id_medicion) || id_medicion <= 0) {
+        return res.status(400).json({
+            error: "El ID de la medición no es válido"
+        });
+    }
+
+    if (
+        typeof motivo_correccion !== "string" ||
+        !motivo_correccion.trim()
+    ) {
+        return res.status(400).json({
+            error: "Debes indicar el motivo de la corrección"
+        });
+    }
+
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        //Verificar que exista la medición y bloquearla durante la corrección
+        const [mediciones] = await connection.execute(
+            `SELECT id_medicion
+             FROM mediciones
+             WHERE id_medicion = ?
+             FOR UPDATE`,
+            [id_medicion]
+        );
+
+        if (mediciones.length === 0) {
+            await connection.rollback();
+
+            return res.status(404).json({
+                error: "No se encontró la medición"
+            });
+        }
+
+        //Obtener la última versión registrada
+        const [versiones] = await connection.execute(
+            `SELECT *
+             FROM medicion_versiones
+             WHERE id_medicion = ?
+             ORDER BY numero_version DESC
+             LIMIT 1
+             FOR UPDATE`,
+            [id_medicion]
+        );
+
+        if (versiones.length === 0) {
+            await connection.rollback();
+
+            return res.status(404).json({
+                error: "No se encontró una versión de la medición"
+            });
+        }
+
+        const actual = versiones[0];
+
+        //Conservar los valores actuales cuando no se envíe un campo
+        const nuevaFecha =
+            fecha_medicion ?? actual.fecha_medicion;
+
+        const nuevoPeso =
+            peso_kg === undefined ? Number(actual.peso_kg) : Number(peso_kg);
+
+        const nuevaTalla =
+            talla_cm === undefined ? Number(actual.talla_cm) : Number(talla_cm);
+
+        const nuevoTipoTalla =
+            tipo_talla ?? actual.tipo_talla;
+
+        const nuevoPerimetro =
+            perimetro_cefalico_cm === undefined
+                ? actual.perimetro_cefalico_cm
+                : (
+                    perimetro_cefalico_cm === "" ||
+                    perimetro_cefalico_cm === null
+                        ? null
+                        : Number(perimetro_cefalico_cm)
+                );
+
+        const nuevoTipo =
+            tipo ?? actual.tipo;
+
+        const nuevoMotivoExtraordinaria =
+            motivo_extraordinaria === undefined
+                ? actual.motivo_extraordinaria
+                : (
+                    typeof motivo_extraordinaria === "string" &&
+                    motivo_extraordinaria.trim()
+                        ? motivo_extraordinaria.trim()
+                        : null
+                );
+
+        const nuevasObservaciones =
+            observaciones === undefined
+                ? actual.observaciones
+                : (observaciones || null);
+
+        //Validar fecha, peso y talla
+        if (
+            !nuevaFecha ||
+            Number.isNaN(Date.parse(nuevaFecha)) ||
+            !Number.isFinite(nuevoPeso) ||
+            nuevoPeso <= 0 ||
+            !Number.isFinite(nuevaTalla) ||
+            nuevaTalla <= 0
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                error: "La fecha, el peso o la talla no son válidos"
+            });
+        }
+
+        //Validar los tipos seleccionados
+        if (
+            !["longitud_acostado", "talla_de_pie"].includes(nuevoTipoTalla) ||
+            !["periodica", "extraordinaria"].includes(nuevoTipo)
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                error: "El tipo de talla o de medición no es válido"
+            });
+        }
+
+        //Validar el perímetro cefálico, si se proporcionó
+        if (
+            nuevoPerimetro !== null &&
+            (!Number.isFinite(nuevoPerimetro) || nuevoPerimetro <= 0)
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                error: "El perímetro cefálico debe ser mayor que cero"
+            });
+        }
+
+        //Validar el motivo de la medición extraordinaria
+        if (
+            nuevoTipo === "extraordinaria" &&
+            (
+                typeof nuevoMotivoExtraordinaria !== "string" ||
+                !nuevoMotivoExtraordinaria.trim()
+            )
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                error: "Debes indicar el motivo de la medición extraordinaria"
+            });
+        }
+
+        //Comprobar que la fecha no sea anterior al nacimiento utilizado
+        const fechaNacimiento = actual.fecha_nacimiento_utilizada;
+
+        if (new Date(nuevaFecha) < new Date(fechaNacimiento)) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                error: "La fecha de medición no puede ser anterior al nacimiento"
+            });
+        }
+
+        //Crear una nueva versión sin sobrescribir la anterior
+        const nuevoNumeroVersion = actual.numero_version + 1;
+
+        const [resultado] = await connection.execute(
+            `INSERT INTO medicion_versiones (
+                id_medicion,
+                numero_version,
+                fecha_medicion,
+                fecha_nacimiento_utilizada,
+                sexo_patron_utilizado,
+                peso_kg,
+                talla_cm,
+                tipo_talla,
+                perimetro_cefalico_cm,
+                tipo,
+                motivo_extraordinaria,
+                observaciones,
+                estado_nutricional_registrado,
+                motivo_correccion,
+                registrado_por
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                id_medicion,
+                nuevoNumeroVersion,
+                convertirFecha(nuevaFecha),
+                actual.fecha_nacimiento_utilizada,
+                actual.sexo_patron_utilizado,
+                nuevoPeso,
+                nuevaTalla,
+                nuevoTipoTalla,
+                nuevoPerimetro,
+                nuevoTipo,
+                nuevoTipo === "extraordinaria"
+                    ? nuevoMotivoExtraordinaria.trim()
+                    : null,
+                nuevasObservaciones,
+                actual.estado_nutricional_registrado,
+                motivo_correccion.trim(),
+                usuarioId
+            ]
+        );
+
+        //Confirmar la transacción
+        await connection.commit();
+
+        //Responder con los datos de la nueva versión
+        res.json({
+            id: id_medicion,
+            id_medicion,
+            id_version: resultado.insertId,
+            numero_version: nuevoNumeroVersion,
+            fecha_medicion: nuevaFecha,
+            peso_kg: nuevoPeso,
+            talla_cm: nuevaTalla,
+            tipo_talla: nuevoTipoTalla,
+            perimetro_cefalico_cm: nuevoPerimetro,
+            tipo: nuevoTipo,
+            motivo_extraordinaria:
+                nuevoTipo === "extraordinaria"
+                    ? nuevoMotivoExtraordinaria.trim()
+                    : null,
+            observaciones: nuevasObservaciones,
+            motivo_correccion: motivo_correccion.trim()
+        });
+
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
+
+        console.error("Error al corregir medición:", error);
+
+        res.status(500).json({
+            error: "Ocurrió un error al corregir la medición"
+        });
+
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+}
+
+app.put("/mediciones/:id", async (req, res) => {
+    try {
+        await updateMedicion(req, res);
+    } catch (error) {
+        console.error("Error al corregir medición:", error);
+
+        if (res.headersSent) return;
+
+        if (error.code === "ER_NO_REFERENCED_ROW_2") {
+            return res.status(400).json({
+                error: "El usuario responsable no existe"
+            });
+        }
+
+        if (
+            error.code === "ER_CHECK_CONSTRAINT_VIOLATED" ||
+            error.code === "ER_DUP_ENTRY" ||
+            error.code === "ER_DATA_TOO_LONG"
+        ) {
+            return res.status(400).json({
+                error: "Los datos de la corrección no cumplen las restricciones"
+            });
+        }
+
+        return res.status(500).json({
+            error: "Error al corregir la medición"
+        });
+    }
+});
+
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListSeguimientos(collection, req, res) {
-    let sortBy = req.query._sort || "id_seguimiento";
     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
-    let limite = Math.max(0, fin - inicio);
+    let limite = fin - inicio;
 
-    // Validar la columna por la que se ordenará
-    if (true) {
-        sortBy = "id_seguimiento";
+    let filtro = {};
+
+    if (req.query.filter) {
+        filtro = typeof req.query.filter === "string"
+            ? JSON.parse(req.query.filter)
+            : req.query.filter;
     }
 
-    // Consultar registros
-    let [data] = await pool.execute(
-        `SELECT 
+    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"]);
+
+    let where = "";
+    let parametros = [];
+
+    if (Number.isInteger(idInfante) && idInfante > 0) {
+        where = "WHERE s.id_infante = ?";
+        parametros.push(idInfante);
+    }
+
+    if (filtro.id_infante) {
+        where = "WHERE s.id_infante = ?";
+        parametros.push(filtro.id_infante);
+    }
+
+    const [data] = await pool.execute(
+        `SELECT
             s.id_seguimiento AS id,
+            s.id_seguimiento,
             s.id_infante,
+            s.id_condicion,
             s.fecha_apertura,
             s.motivo,
             s.estado,
-            a.responsable_nombre,
-            a.observaciones,
-            a.acciones_realizadas
-
-        FROM acciones_seguimiento a
-        JOIN seguimientos s 
-        USING (id_seguimiento)
-        ORDER BY \`${sortBy}\` ${sortOrder}
-        LIMIT ? OFFSET ?`,
-        [limite, inicio]
-        
-    );
-    
-    // Consultar total de registros
-    let [total] = await pool.execute(
-        `SELECT COUNT(*) AS total FROM seguimientos`
+            s.fecha_cierre
+         FROM seguimientos s
+         ${where}
+         ORDER BY s.id_seguimiento ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [...parametros, limite, inicio]
     );
 
-    // Enviar total para la paginación de React Admin
+    const [total] = await pool.execute(
+        `SELECT COUNT(*) AS total
+         FROM seguimientos s
+         ${where}`,
+        parametros
+    );
+
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
     res.json(data);
@@ -1550,7 +1841,7 @@ app.get("/seguimientos", async (req, res) => {
 
         if ("target" in req.query) {
             await getManyReference("seguimientos", req, res);
-        } else if ("id" in req.query) {
+        } else if ("id_seguimiento" in req.query) {
             await getMany("seguimientos", req, res);
         } else {
             await getListSeguimientos("seguimientos", req, res);
@@ -1562,125 +1853,149 @@ app.get("/seguimientos", async (req, res) => {
     }
 });
 
-
-
 async function createSeguimiento(req, res) {
     const {
         id_infante,
+        id_condicion,
         fecha_apertura,
         motivo,
-        estado,
-        observaciones,
-        acciones_realizadas,
-        responsable_nombre
+        estado
     } = req.body;
 
-    // Usuario temporal hasta conectar la autenticación
-    const usuarioId = 1;
+    const usuarioId = 1; // Temporal hasta conectar la autenticación.
 
-    // Validar campos obligatorios
+    const estadosValidos = [
+        "requiere_seguimiento",
+        "en_seguimiento"
+    ];
+
     if (
         !id_infante ||
         !fecha_apertura ||
         !motivo?.trim() ||
-        !estado ||
-        !responsable_nombre?.trim() ||
-        !acciones_realizadas?.trim()
+        !estadosValidos.includes(estado)
     ) {
         return res.status(400).json({
-            error: "Todos los campos obligatorios deben completarse."
+            error: "Completa los campos obligatorios con valores válidos."
         });
     }
 
-    const estadosValidos = [
-        "requiere_seguimiento",
-        "en_seguimiento",
-        "concluido"
-    ];
+    const fechaTexto = String(fecha_apertura).slice(0, 10);
 
-    if (!estadosValidos.includes(estado)) {
+    if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(fechaTexto) ||
+        Number.isNaN(Date.parse(`${fechaTexto}T00:00:00Z`))
+    ) {
         return res.status(400).json({
-            error: "El estado del seguimiento no es válido."
+            error: "La fecha de apertura no es válida."
         });
     }
 
-    // Un seguimiento concluido necesita una fecha de cierre.
-    // En este formulario solo se crean seguimientos abiertos.
-    if (estado === "concluido") {
+    const condicionId =
+        id_condicion === undefined ||
+        id_condicion === null ||
+        id_condicion === ""
+            ? null
+            : Number(id_condicion);
+
+    if (
+        condicionId !== null &&
+        (!Number.isInteger(condicionId) || condicionId <= 0)
+    ) {
         return res.status(400).json({
-            error: "No puedes crear un seguimiento concluido desde este formulario."
+            error: "La condición de salud no es válida."
         });
     }
 
-    const conexion = await pool.getConnection();
-    let transaccionIniciada = false;
+    let conexion;
 
     try {
+        conexion = await pool.getConnection();
         await conexion.beginTransaction();
-        transaccionIniciada = true;
 
-        // Crear el seguimiento
+        // Verificar que exista el infante.
+        const [infantes] = await conexion.execute(
+            `SELECT id_infante
+             FROM infantes
+             WHERE id_infante = ?`,
+            [id_infante]
+        );
+
+        if (infantes.length === 0) {
+            await conexion.rollback();
+
+            return res.status(400).json({
+                error: "El infante indicado no existe."
+            });
+        }
+
+        // Si se seleccionó una condición, verificar que pertenezca
+        // al mismo infante.
+        if (condicionId !== null) {
+            const [condiciones] = await conexion.execute(
+                `SELECT id_condicion
+                 FROM condiciones_salud
+                 WHERE id_condicion = ?
+                   AND id_infante = ?`,
+                [condicionId, id_infante]
+            );
+
+            if (condiciones.length === 0) {
+                await conexion.rollback();
+
+                return res.status(400).json({
+                    error: "La condición no existe o no pertenece al infante seleccionado."
+                });
+            }
+        }
+
+        // Crear únicamente el seguimiento.
         const [resultado] = await conexion.execute(
-            `INSERT INTO seguimientos
-                (id_infante, id_condicion, motivo, estado,
-                 fecha_apertura, creado_por)
-             VALUES (?, NULL, ?, ?, ?, ?)`,
-            [
+            `INSERT INTO seguimientos (
                 id_infante,
+                id_condicion,
                 motivo,
                 estado,
                 fecha_apertura,
-                usuarioId
-            ]
-        );
-
-        const idSeguimiento = resultado.insertId;
-
-        // Registrar la primera acción del seguimiento
-        await conexion.execute(
-            `INSERT INTO acciones_seguimiento
-                (id_seguimiento, fecha, observaciones,
-                 acciones_realizadas, responsable_nombre, registrado_por)
-             VALUES (?, NOW(), ?, ?, ?, ?)`,
+                fecha_cierre,
+                creado_por
+            ) VALUES (?, ?, ?, ?, ?, NULL, ?)`,
             [
-                idSeguimiento,
-                observaciones || null,
-                acciones_realizadas,
-                responsable_nombre,
+                id_infante,
+                condicionId,
+                motivo.trim(),
+                estado,
+                fechaTexto,
                 usuarioId
             ]
         );
 
         await conexion.commit();
-        transaccionIniciada = false;
 
-        // Respuesta que React Admin necesita: debe incluir "id"
         return res.status(201).json({
-            id: idSeguimiento,
-            id_seguimiento: idSeguimiento,
-            id_infante,
-            id_condicion: null,
-            fecha_apertura,
-            motivo,
-            estado
+            id: resultado.insertId,
+            id_seguimiento: resultado.insertId,
+            id_infante: Number(id_infante),
+            id_condicion: condicionId,
+            fecha_apertura: fechaTexto,
+            motivo: motivo.trim(),
+            estado,
+            fecha_cierre: null
         });
 
     } catch (error) {
-        if (transaccionIniciada) {
+        if (conexion) {
             await conexion.rollback();
         }
 
         console.error("Error al crear seguimiento:", error);
 
-        if (error.code === "ER_NO_REFERENCED_ROW_2") {
+        if (
+            error.code === "ER_NO_REFERENCED_ROW_2" ||
+            error.code === "ER_NO_REFERENCED_ROW"
+        ) {
             return res.status(400).json({
-                error: "El infante o el usuario indicado no existe."
-            });
-        }
-
-        if (error.code === "ER_CHECK_CONSTRAINT_VIOLATED") {
-            return res.status(400).json({
-                error: "Los datos no cumplen las reglas del seguimiento."
+                error: "El infante, la condición o el usuario indicado no existe."
             });
         }
 
@@ -1689,7 +2004,9 @@ async function createSeguimiento(req, res) {
         });
 
     } finally {
-        conexion.release();
+        if (conexion) {
+            conexion.release();
+        }
     }
 }
 
@@ -1707,23 +2024,20 @@ app.post("/seguimientos", async (req, res) => {
     }
 });
 
+
 async function getOneSeguimiento(collection, id, req, res) {
-    let [data] = await pool.execute(
-        `SELECT 
+    const [data] = await pool.execute(
+        `SELECT
             s.id_seguimiento AS id,
+            s.id_seguimiento,
             s.id_infante,
+            s.id_condicion,
             s.fecha_apertura,
             s.motivo,
             s.estado,
-            a.responsable_nombre,
-            a.observaciones,
-            a.acciones_realizadas
-
-        FROM acciones_seguimiento a
-        JOIN seguimientos s 
-        USING (id_seguimiento)
-
-        WHERE s.id_seguimiento = ?`,
+            s.fecha_cierre
+         FROM seguimientos s
+         WHERE s.id_seguimiento = ?`,
         [id]
     );
 
@@ -1743,15 +2057,896 @@ app.get("/seguimientos/:id", async (req, res) => {
     }
 });
 
+
+async function updateSeguimiento(req, res) {
+    const idSeguimiento = Number(req.params.id);
+    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+
+    const {
+        id_infante,
+        id_condicion,
+        fecha_apertura,
+        motivo,
+        estado,
+        fecha_cierre
+    } = req.body;
+
+    const estadosValidos = [
+        "requiere_seguimiento",
+        "en_seguimiento",
+        "concluido"
+    ];
+
+    if (!Number.isInteger(idSeguimiento) || idSeguimiento <= 0) {
+        return res.status(400).json({
+            error: "El ID del seguimiento no es válido."
+        });
+    }
+
+    if (
+        !id_infante ||
+        !fecha_apertura ||
+        !motivo?.trim() ||
+        !estadosValidos.includes(estado)
+    ) {
+        return res.status(400).json({
+            error: "Completa los campos obligatorios con valores válidos."
+        });
+    }
+
+    const fechaAperturaTexto = String(fecha_apertura).slice(0, 10);
+
+    const fechaConvertida = convertirFecha(fechaTexto);
+
+    if (
+        !fechaConvertida ||
+        Number.isNaN(Date.parse(`${fechaConvertida}T00:00:00Z`))
+    ) {
+        return res.status(400).json({
+            error: "La fecha de apertura no es válida."
+        });
+    }
+
+    const condicionEnviada =
+        id_condicion !== undefined;
+
+    const condicionId = !condicionEnviada ||
+        id_condicion === null ||
+        id_condicion === ""
+            ? null
+            : Number(id_condicion);
+
+    if (
+        condicionId !== null &&
+        (!Number.isInteger(condicionId) || condicionId <= 0)
+    ) {
+        return res.status(400).json({
+            error: "La condición de salud no es válida."
+        });
+    }
+
+    let conexion;
+
+    try {
+        conexion = await pool.getConnection();
+        await conexion.beginTransaction();
+
+        //Buscar el seguimiento y bloquearlo durante la actualización.
+        const [seguimientos] = await conexion.execute(
+            `SELECT *
+             FROM seguimientos
+             WHERE id_seguimiento = ?
+             FOR UPDATE`,
+            [idSeguimiento]
+        );
+
+        if (seguimientos.length === 0) {
+            await conexion.rollback();
+
+            return res.status(404).json({
+                error: "No se encontró el seguimiento."
+            });
+        }
+
+        const actual = seguimientos[0];
+
+        //Si el formulario no envía id_condicion, conservar la actual.
+        const nuevaCondicionId = condicionEnviada
+            ? condicionId
+            : actual.id_condicion;
+
+        //Verificar que exista el infante.
+        const [infantes] = await conexion.execute(
+            `SELECT id_infante
+             FROM infantes
+             WHERE id_infante = ?`,
+            [id_infante]
+        );
+
+        if (infantes.length === 0) {
+            await conexion.rollback();
+
+            return res.status(400).json({
+                error: "El infante indicado no existe."
+            });
+        }
+
+        //Verificar que la condición pertenezca al infante seleccionado.
+        if (nuevaCondicionId !== null) {
+            const [condiciones] = await conexion.execute(
+                `SELECT id_condicion
+                 FROM condiciones_salud
+                 WHERE id_condicion = ?
+                   AND id_infante = ?`,
+                [nuevaCondicionId, id_infante]
+            );
+
+            if (condiciones.length === 0) {
+                await conexion.rollback();
+
+                return res.status(400).json({
+                    error: "La condición no existe o no pertenece al infante seleccionado."
+                });
+            }
+        }
+
+        //Determinar la fecha de cierre.
+        let nuevaFechaCierre = null;
+
+        if (estado === "concluido") {
+            if (fecha_cierre) {
+                nuevaFechaCierre = String(fecha_cierre).slice(0, 10);
+            } else if (actual.estado === "concluido" && actual.fecha_cierre) {
+                nuevaFechaCierre = String(actual.fecha_cierre).slice(0, 10);
+            } else {
+                const [fechaActual] = await conexion.execute(
+                    "SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS hoy"
+                );
+
+                nuevaFechaCierre = fechaActual[0].hoy;
+            }
+
+            const fechaCierreTexto = convertirFecha(nuevaFechaCierre);
+
+            if (
+                !fechaCierreTexto ||
+                fechaCierreTexto < fechaAperturaTexto
+            ) {
+                await conexion.rollback();
+
+                return res.status(400).json({
+                    error: "La fecha de cierre debe ser válida y no anterior a la fecha de apertura."
+                });
+            }
+        }
+
+        //Actualizar exclusivamente la tabla seguimientos.
+        await conexion.execute(
+            `UPDATE seguimientos
+             SET id_infante = ?,
+                 id_condicion = ?,
+                 fecha_apertura = ?,
+                 motivo = ?,
+                 estado = ?,
+                 fecha_cierre = ?
+             WHERE id_seguimiento = ?`,
+            [
+                id_infante,
+                nuevaCondicionId,
+                fechaAperturaTexto,
+                motivo.trim(),
+                estado,
+                nuevaFechaCierre,
+                idSeguimiento
+            ]
+        );
+
+        await conexion.commit();
+
+        return res.json({
+            id: idSeguimiento,
+            id_seguimiento: idSeguimiento,
+            id_infante: Number(id_infante),
+            id_condicion: nuevaCondicionId,
+            fecha_apertura: fechaAperturaTexto,
+            motivo: motivo.trim(),
+            estado,
+            fecha_cierre: nuevaFechaCierre
+        });
+
+    } catch (error) {
+        if (conexion) {
+            await conexion.rollback();
+        }
+
+        console.error("Error al actualizar seguimiento:", error);
+
+        if (
+            error.code === "ER_NO_REFERENCED_ROW_2" ||
+            error.code === "ER_NO_REFERENCED_ROW"
+        ) {
+            return res.status(400).json({
+                error: "El infante, la condición o el usuario indicado no existe."
+            });
+        }
+
+        return res.status(500).json({
+            error: "Ocurrió un error al actualizar el seguimiento."
+        });
+
+    } finally {
+        if (conexion) {
+            conexion.release();
+        }
+    }
+}
+
+app.put("/seguimientos/:id", async (req, res) => {
+    try {
+        await updateSeguimiento(req, res);
+    } catch (error) {
+        console.error("Error en PUT /seguimientos:", error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: "Error interno al actualizar el seguimiento."
+            });
+        }
+    }
+});
+
 //---------------------------------------------------------------------------------------------------------------
 
+async function getListCondiciones(req, res) {
 
+    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    let inicio = Number(req.query._start) || 0;
+    let fin = Number(req.query._end) || inicio + 10;
+    let limite = fin - inicio;
 
+    //Permite consultar las condiciones de un infante.
+    if ("target" in req.query) {
+        if (req.query.target !== "id_infante") {
+            return res.status(400).json({
+                error: "El filtro solicitado no es válido."
+            });
+        }
+    }
 
+    let filtro = {};
 
+    if (req.query.filter) {
+        filtro = typeof req.query.filter === "string"
+            ? JSON.parse(req.query.filter)
+            : req.query.filter;
+    }
 
+    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"]);
 
+    let where = "";
+    let parametros = [];
 
+    if (Number.isInteger(idInfante) && idInfante > 0) {
+        where = "WHERE c.id_infante = ?";
+        parametros.push(idInfante);
+    }
+
+    const [data] = await pool.execute(
+        `SELECT
+            c.id_condicion AS id,
+            c.id_condicion,
+            c.id_infante,
+            DATE_FORMAT(c.fecha_registro, '%Y-%m-%d') AS fecha_registro,
+            c.descripcion,
+            c.registrado_por
+         FROM condiciones_salud c
+         ${where}
+         ORDER BY c.id_condicion ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [...parametros, limite, inicio]
+    );
+
+    const [total] = await pool.execute(
+        `SELECT COUNT(*) AS total
+         FROM condiciones_salud c
+         ${where}`,
+        parametros
+    );
+
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.set("X-Total-Count", String(total[0].total));
+    res.json(data);
+}
+
+app.get("/condiciones", async (req, res) => {
+    try {
+        if ("target" in req.query) {
+            await getListCondiciones(req, res);
+        } else if ("id_condicion" in req.query) {
+            await getMany(req, res);
+        } else {
+            await getListCondiciones(req, res);
+        }
+    } catch (error) {
+        console.error("Error en GET /condiciones:", error);
+        res.status(500).json({
+            error: "Error al consultar las condiciones de salud."
+        });
+    }
+});
+
+async function getOneCondicion(id, res) {
+    const [data] = await pool.execute(
+        `SELECT
+            id_condicion AS id,
+            id_condicion,
+            id_infante,
+            DATE_FORMAT(fecha_registro, '%Y-%m-%d') AS fecha_registro,
+            descripcion,
+            registrado_por
+         FROM condiciones_salud
+         WHERE id_condicion = ?`,
+        [id]
+    );
+
+    if (data.length === 0) {
+        return res.sendStatus(404);
+    }
+
+    res.json(data[0]);
+}
+
+app.get("/condiciones/:id", async (req, res) => {
+    try {
+        await getOneCondicion(Number(req.params.id), res);
+    } catch (error) {
+        console.error("Error en GET /condiciones/:id:", error);
+        res.status(500).json({
+            error: "Error al consultar la condición."
+        });
+    }
+});
+
+async function createCondicion(req, res) {
+    const { id_infante, fecha_registro, descripcion } = req.body;
+    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+
+    const infanteId = Number(id_infante);
+    const fechaTexto = convertirFecha(fecha_registro);
+
+    if (
+        !Number.isInteger(infanteId) ||
+        infanteId <= 0 ||
+        !fechaTexto ||
+        !descripcion?.trim()
+    ) {
+        return res.status(400).json({
+            error: "Completa los campos obligatorios."
+        });
+    }
+
+    try {
+        const [infantes] = await pool.execute(
+            `SELECT id_infante
+             FROM infantes
+             WHERE id_infante = ?`,
+            [infanteId]
+        );
+
+        if (infantes.length === 0) {
+            return res.status(400).json({
+                error: "El infante indicado no existe."
+            });
+        }
+
+        const [resultado] = await pool.execute(
+            `INSERT INTO condiciones_salud (
+                id_infante,
+                descripcion,
+                fecha_registro,
+                registrado_por
+            ) VALUES (?, ?, ?, ?)`,
+            [
+                infanteId,
+                descripcion.trim(),
+                fechaTexto,
+                usuarioId
+            ]
+        );
+
+        return res.status(201).json({
+            id: resultado.insertId,
+            id_condicion: resultado.insertId,
+            id_infante: infanteId,
+            descripcion: descripcion.trim(),
+            fecha_registro: fechaTexto,
+            registrado_por: usuarioId
+        });
+    } catch (error) {
+        console.error("Error al crear condición:", error);
+
+        if (
+            error.code === "ER_NO_REFERENCED_ROW_2" ||
+            error.code === "ER_NO_REFERENCED_ROW"
+        ) {
+            return res.status(400).json({
+                error: "El infante o el usuario indicado no existe."
+            });
+        }
+
+        return res.status(500).json({
+            error: "Ocurrió un error al registrar la condición."
+        });
+    }
+}
+
+app.post("/condiciones", async (req, res) => {
+    try {
+        await createCondicion(req, res);
+    } catch (error) {
+        console.error("Error en POST /condiciones:", error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: "Error al registrar la condición."
+            });
+        }
+    }
+});
+
+async function updateCondicion(req, res) {
+    const idCondicion = Number(req.params.id);
+    const { fecha_registro, descripcion } = req.body;
+    const fechaTexto = convertirFecha(fecha_registro);
+
+    if (
+        !Number.isInteger(idCondicion) ||
+        idCondicion <= 0 ||
+        !fechaTexto ||
+        !descripcion?.trim()
+    ) {
+        return res.status(400).json({
+            error: "Completa los campos obligatorios con valores válidos."
+        });
+    }
+
+    try {
+        const [actuales] = await pool.execute(
+            `SELECT id_condicion
+             FROM condiciones_salud
+             WHERE id_condicion = ?`,
+            [idCondicion]
+        );
+
+        if (actuales.length === 0) {
+            return res.status(404).json({
+                error: "No se encontró la condición de salud."
+            });
+        }
+
+        await pool.execute(
+            `UPDATE condiciones_salud
+             SET descripcion = ?,
+                 fecha_registro = ?
+             WHERE id_condicion = ?`,
+            [descripcion.trim(), fechaTexto, idCondicion]
+        );
+
+        const [data] = await pool.execute(
+            `SELECT
+                id_condicion AS id,
+                id_condicion,
+                id_infante,
+                DATE_FORMAT(fecha_registro, '%Y-%m-%d') AS fecha_registro,
+                descripcion,
+                registrado_por
+             FROM condiciones_salud
+             WHERE id_condicion = ?`,
+            [idCondicion]
+        );
+
+        return res.json(data[0]);
+    } catch (error) {
+        console.error("Error al actualizar condición:", error);
+
+        return res.status(500).json({
+            error: "Ocurrió un error al actualizar la condición."
+        });
+    }
+}
+
+app.put("/condiciones/:id", async (req, res) => {
+    try {
+        await updateCondicion(req, res);
+    } catch (error) {
+        console.error("Error en PUT /condiciones:", error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: "Error al actualizar la condición."
+            });
+        }
+    }
+});
+
+//---------------------------------------------------------------------------------------------------------------
+
+async function getListAccionesSeguimiento(req, res) {
+    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    let inicio = Number(req.query._start) || 0;
+    let fin = Number(req.query._end) || inicio + 10;
+    let limite = fin - inicio;
+
+    const [data] = await pool.execute(
+        `SELECT
+            a.id_accion AS id,
+            a.id_accion,
+            a.id_seguimiento,
+            s.id_infante,
+            CONCAT_WS(' ', i.nombre, i.apellido_paterno, i.apellido_materno) AS nombre_completo,
+            DATE_FORMAT(a.fecha, '%Y-%m-%dT%H:%i') AS fecha,
+            a.observaciones,
+            a.acciones_realizadas,
+            a.responsable_nombre,
+            a.responsable_usuario,
+            a.registrado_por
+         FROM acciones_seguimiento a
+         INNER JOIN seguimientos s ON a.id_seguimiento = s.id_seguimiento
+         INNER JOIN infantes i ON s.id_infante = i.id_infante
+         ORDER BY a.id_accion ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [limite, inicio]
+    );
+
+    const [total] = await pool.execute(
+        `SELECT COUNT(*) AS total
+         FROM acciones_seguimiento`
+    );
+
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.set("X-Total-Count", String(total[0].total));
+    res.json(data);
+}
+
+app.get("/acciones_seguimiento", async (req, res) => {
+    try {
+        if ("id" in req.query) {
+            await getMany(req, res);
+        } else {
+            await getListAccionesSeguimiento(req, res);
+        }
+    } catch (error) {
+        console.error("Error en GET /acciones_seguimiento:", error);
+        res.status(500).json({
+            error: "Error al consultar las acciones."
+        });
+    }
+});
+
+async function getOneAccionSeguimiento(id, res) {
+    const [data] = await pool.execute(
+        `SELECT
+            a.id_accion AS id,
+            a.id_accion,
+            a.id_seguimiento,
+            s.id_infante,
+            CONCAT_WS(' ', i.nombre, i.apellido_paterno, i.apellido_materno) AS nombre_completo,
+            DATE_FORMAT(a.fecha, '%Y-%m-%dT%H:%i') AS fecha,
+            a.observaciones,
+            a.acciones_realizadas,
+            a.responsable_nombre,
+            a.responsable_usuario,
+            a.registrado_por
+         FROM acciones_seguimiento a
+         INNER JOIN seguimientos s ON a.id_seguimiento = s.id_seguimiento
+         INNER JOIN infantes i ON s.id_infante = i.id_infante
+         WHERE a.id_accion = ?`,
+        [id]
+    );
+
+    if (data.length === 0) {
+        return res.sendStatus(404);
+    }
+
+    res.json(data[0]);
+}
+
+app.get("/acciones_seguimiento/:id", async (req, res) => {
+    try {
+        await getOneAccionSeguimiento(
+            Number(req.params.id),
+            res
+        );
+    } catch (error) {
+        console.error("Error al consultar la acción:", error);
+        res.status(500).json({
+            error: "Error al consultar la acción."
+        });
+    }
+});
+
+async function createAccionSeguimiento(req, res) {
+    const {
+        id_infante,
+        id_seguimiento,
+        fecha,
+        observaciones,
+        acciones_realizadas,
+        responsable_nombre,
+        responsable_usuario
+    } = req.body;
+
+    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+
+    const infanteId = Number(id_infante);
+    const seguimientoId = Number(id_seguimiento);
+    const fechaTexto = fecha
+        ? String(fecha).replace("T", " ").slice(0, 19)
+        : "";
+
+    const responsableUsuarioId =
+        responsable_usuario === undefined ||
+        responsable_usuario === null ||
+        responsable_usuario === ""
+            ? null
+            : Number(responsable_usuario);
+
+    if (
+        !Number.isInteger(infanteId) ||
+        infanteId <= 0 ||
+        !Number.isInteger(seguimientoId) ||
+        seguimientoId <= 0 ||
+        !fechaTexto ||
+        !acciones_realizadas?.trim() ||
+        !responsable_nombre?.trim()
+    ) {
+        return res.status(400).json({
+            error: "Completa los campos obligatorios."
+        });
+    }
+
+    if (
+        responsableUsuarioId !== null &&
+        (!Number.isInteger(responsableUsuarioId) ||
+            responsableUsuarioId <= 0)
+    ) {
+        return res.status(400).json({
+            error: "El usuario responsable no es válido."
+        });
+    }
+
+    try {
+        const [seguimientos] = await pool.execute(
+            `SELECT id_seguimiento
+             FROM seguimientos
+             WHERE id_seguimiento = ?
+             AND id_infante = ?`,
+            [seguimientoId, infanteId]
+        );
+
+        if (seguimientos.length === 0) {
+            return res.status(400).json({
+                error: "El seguimiento no existe o no pertenece al infante seleccionado."
+            });
+        }
+
+        const [resultado] = await pool.execute(
+            `INSERT INTO acciones_seguimiento (
+                id_seguimiento,
+                fecha,
+                observaciones,
+                acciones_realizadas,
+                responsable_nombre,
+                responsable_usuario,
+                registrado_por
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+                seguimientoId,
+                fechaTexto,
+                observaciones?.trim() || null,
+                acciones_realizadas.trim(),
+                responsable_nombre.trim(),
+                responsableUsuarioId,
+                usuarioId
+            ]
+        );
+
+        return res.status(201).json({
+            id: resultado.insertId,
+            id_accion: resultado.insertId,
+            id_infante: infanteId,
+            id_seguimiento: seguimientoId,
+            fecha: fechaTexto.replace(" ", "T").slice(0, 16),
+            observaciones: observaciones?.trim() || null,
+            acciones_realizadas: acciones_realizadas.trim(),
+            responsable_nombre: responsable_nombre.trim(),
+            responsable_usuario: responsableUsuarioId,
+            registrado_por: usuarioId
+        });
+    } catch (error) {
+        console.error("Error al crear acción de seguimiento:", error);
+
+        if (
+            error.code === "ER_NO_REFERENCED_ROW_2" ||
+            error.code === "ER_NO_REFERENCED_ROW"
+        ) {
+            return res.status(400).json({
+                error: "El seguimiento o alguno de los usuarios indicados no existe."
+            });
+        }
+
+        return res.status(500).json({
+            error: "Ocurrió un error al registrar la acción."
+        });
+    }
+}
+
+app.post("/acciones_seguimiento", async (req, res) => {
+    try {
+        await createAccionSeguimiento(req, res);
+    } catch (error) {
+        console.error("Error en POST /acciones_seguimiento:", error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: "Error al registrar la acción."
+            });
+        }
+    }
+});
+
+async function updateAccionSeguimiento(req, res) {
+    const idAccion = Number(req.params.id);
+
+    const {
+        id_infante,
+        id_seguimiento,
+        fecha,
+        observaciones,
+        acciones_realizadas,
+        responsable_nombre,
+        responsable_usuario
+    } = req.body;
+
+    const infanteId = Number(id_infante);
+    const seguimientoId = Number(id_seguimiento);
+    const fechaTexto = fecha
+        ? String(fecha).replace("T", " ").slice(0, 19)
+        : "";
+
+    const responsableUsuarioId =
+        responsable_usuario === undefined ||
+        responsable_usuario === null ||
+        responsable_usuario === ""
+            ? null
+            : Number(responsable_usuario);
+
+    if (
+        !Number.isInteger(idAccion) ||
+        idAccion <= 0 ||
+        !Number.isInteger(infanteId) ||
+        infanteId <= 0 ||
+        !Number.isInteger(seguimientoId) ||
+        seguimientoId <= 0 ||
+        !fechaTexto ||
+        !acciones_realizadas?.trim() ||
+        !responsable_nombre?.trim()
+    ) {
+        return res.status(400).json({
+            error: "Completa los campos obligatorios."
+        });
+    }
+
+    if (
+        responsableUsuarioId !== null &&
+        (!Number.isInteger(responsableUsuarioId) ||
+            responsableUsuarioId <= 0)
+    ) {
+        return res.status(400).json({
+            error: "El usuario responsable no es válido."
+        });
+    }
+
+    try {
+        const [actuales] = await pool.execute(
+            `SELECT id_accion
+             FROM acciones_seguimiento
+             WHERE id_accion = ?`,
+            [idAccion]
+        );
+
+        if (actuales.length === 0) {
+            return res.status(404).json({
+                error: "No se encontró la acción."
+            });
+        }
+
+        const [seguimientos] = await pool.execute(
+            `SELECT id_seguimiento
+             FROM seguimientos
+             WHERE id_seguimiento = ?
+             AND id_infante = ?`,
+            [seguimientoId, infanteId]
+        );
+
+        if (seguimientos.length === 0) {
+            return res.status(400).json({
+                error: "El seguimiento no existe o no pertenece al infante seleccionado."
+            });
+        }
+
+        await pool.execute(
+            `UPDATE acciones_seguimiento
+             SET id_seguimiento = ?,
+                 fecha = ?,
+                 observaciones = ?,
+                 acciones_realizadas = ?,
+                 responsable_nombre = ?,
+                 responsable_usuario = ?
+             WHERE id_accion = ?`,
+            [
+                seguimientoId,
+                fechaTexto,
+                observaciones?.trim() || null,
+                acciones_realizadas.trim(),
+                responsable_nombre.trim(),
+                responsableUsuarioId,
+                idAccion
+            ]
+        );
+
+        const [data] = await pool.execute(
+            `SELECT
+                a.id_accion AS id,
+                a.id_accion,
+                a.id_seguimiento,
+                s.id_infante,
+                CONCAT_WS(' ', i.nombre, i.apellido_paterno, i.apellido_materno) AS nombre_completo,
+                DATE_FORMAT(a.fecha, '%Y-%m-%dT%H:%i') AS fecha,
+                a.observaciones,
+                a.acciones_realizadas,
+                a.responsable_nombre,
+                a.responsable_usuario,
+                a.registrado_por
+             FROM acciones_seguimiento a
+             INNER JOIN seguimientos s ON a.id_seguimiento = s.id_seguimiento
+             INNER JOIN infantes i ON s.id_infante = i.id_infante
+             WHERE a.id_accion = ?`,
+            [idAccion]
+        );
+
+        return res.json(data[0]);
+    } catch (error) {
+        console.error("Error al actualizar acción:", error);
+
+        if (
+            error.code === "ER_NO_REFERENCED_ROW_2" ||
+            error.code === "ER_NO_REFERENCED_ROW"
+        ) {
+            return res.status(400).json({
+                error: "El seguimiento o alguno de los usuarios indicados no existe."
+            });
+        }
+
+        return res.status(500).json({
+            error: "Ocurrió un error al actualizar la acción."
+        });
+    }
+}
+
+app.put("/acciones_seguimiento/:id", async (req, res) => {
+    try {
+        await updateAccionSeguimiento(req, res);
+    } catch (error) {
+        console.error("Error en PUT /acciones_seguimiento:", error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: "Error al actualizar la acción."
+            });
+        }
+    }
+});
 
 
 

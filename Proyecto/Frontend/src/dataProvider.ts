@@ -1,4 +1,4 @@
-import { fetchUtils, UrlField } from "react-admin";
+import { fetchUtils } from "react-admin";
 import jsonServerProvider from "ra-data-json-server";
 
 const fetchJsonUtil=(url:string, options:fetchUtils.Options={}) => {
