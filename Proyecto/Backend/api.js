@@ -22,7 +22,7 @@ app.use(bodyParser.json());
 const pool = mysql.createPool({
     host: '127.0.0.1',
     user: 'root',
-    password: 'bl200611',
+    password: 'Cinamoroll25.',
     database: 'issste_padron'
 }).promise();
 

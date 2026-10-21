@@ -27,6 +27,9 @@ import {
   ApartmentOutlined,
 } from "@mui/icons-material";
 
+import type { ThemeOptions } from "@mui/material";
+import { borderRadius } from "@mui/system";
+
 const accessControlProvider = {
   canAccess: async ({ resource, action }: { resource?: string; action: string }) => {
     const role = localStorage.getItem("userRole");
@@ -48,18 +51,34 @@ const accessControlProvider = {
   },
 };
 
-const tema = {
-  ...defaultTheme, // copia del tema original, "..." (spread) copian propiedades de un objeto, los utilizamos para conservar todo lo del tema original y cambair solo la fuente
+// Paleta oficial (mismos colores que en index.css)
+const colores = {
+  guinda: "#611232",
+  blanco: "#ffffff",
+  grisFondo: "#f5f5f4",
+};
+
+const tema: ThemeOptions = {
   palette: {
-    ...defaultTheme.palette,
+    primary: {
+      main: colores.guinda, // color principal: enlaces, botones, checkboxes
+    },
     background: {
-      ...defaultTheme.palette?.background, // if palette exists, go to background
-      default: "#f5f5f4",
+      default: colores.grisFondo,
     },
   },
   typography: {
-    ...defaultTheme.typography, // copia de la tipografía original
-    fontFamily: '"Noto Sans", Arial, Helvetica, sans-serif', // cambio de fuente a Noto Sans
+    fontFamily: '"Noto Sans", Arial, Helvetica, sans-serif', // fuente oficial
+  },
+  components: {
+    RaLayout: {
+      styleOverrides: {
+        root: {
+          // La barra es sticky, así que no hace falta el margen de arriba
+          "& .RaLayout-appFrame": { marginTop: 0 },
+        },
+      },
+    },
   },
 };
 

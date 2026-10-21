@@ -14,6 +14,7 @@ function Dashboard() {
 
           <h1>
             Bienvenido al sistema
+            <span className="sr-only"> (texto de prueba oculto)</span>
           </h1>
 
           <p>

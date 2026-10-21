@@ -21,8 +21,7 @@
   --borde-suave: #d5d5d5;
 
   /* Foco */
-  --foco: #005fcc;
-  --foco-sobre-oscuro: var(--dorado-claro);
+  --foco: #3b82f6;
 
   /* Estados (siempre acompañados de texto + ícono) */
   --exito-texto: #1e5b4f;  --exito-fondo: #e3f1ed;   /* 6.78:1 */
@@ -82,6 +81,19 @@ a:hover{
     text-decoration-thickness: 2px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /*HEADER*/
 
 .app-header {
@@ -100,13 +112,6 @@ a:hover{
   max-width: 120px;
   max-height: 45px;
   object-fit: contain;
-}
-
-.app-header-title {
-  flex: 1;
-  font-weight: 700 !important;
-  font-size: 14px !important;
-  color: var(--guinda);
 }
 
 .app-header-actions {
@@ -128,17 +133,6 @@ a:hover{
   background-color: var(--guinda) !important;
   width: 32px !important;
   height: 32px !important;
-}
-
-.app-header-username {
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  line-height: 1.3 !important;
-}
-
-.app-header-role {
-  font-size: 11px !important;
-  color: var(--gris-texto);
 }
 
 /*FOOTER*/
@@ -165,9 +159,9 @@ a:hover{
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
-  color: var(--guinda);
-  font-size: 12px;
-  text-decoration: underline;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* RESPONSIVE */
@@ -177,10 +171,6 @@ a:hover{
     flex-wrap: wrap;
     padding-top: 8px;
     padding-bottom: 8px;
-  }
-
-  .app-header-title {
-    font-size: 12px !important;
   }
 
   .app-header-logo {
