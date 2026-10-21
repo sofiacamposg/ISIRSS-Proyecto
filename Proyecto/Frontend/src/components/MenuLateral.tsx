@@ -94,6 +94,7 @@ export function MenuLateral() {
             {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="alertas" />}
             {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="reportes" />}
             {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="tutores" />}
+            {(esAdmin) && <Menu.ResourceItem name="usuarios" />}
 
             {(esAdmin || esCoordinador) && <Categoria>Catálogos</Categoria>}
             {(esAdmin || esCoordinador) && <Menu.ResourceItem name="regiones" />}

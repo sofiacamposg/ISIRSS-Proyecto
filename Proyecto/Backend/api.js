@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
+require("dotenv").config();
 
 //Creates the Express server
 const app = express();
@@ -1920,6 +1921,7 @@ app.post("/login", async (req, res) => {
 
         return res.json({
             mensaje: "Inicio de sesión correcto.",
+            token: token,
             usuario: {
                 id_usuario: usuario.id_usuario,
                 nombre: usuario.nombre,
