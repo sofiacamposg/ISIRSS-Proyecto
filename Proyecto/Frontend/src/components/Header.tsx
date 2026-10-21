@@ -4,18 +4,22 @@ import {
   Box,
   Typography,
   IconButton,
-  Avatar,
 } from "@mui/material";
 
 import { RefreshOutlined } from "@mui/icons-material";
+
 import {
   SidebarToggleButton,
   useGetIdentity,
   usePermissions,
+  ToggleThemeButton,
+  UserMenu,
+  Logout,
 } from "react-admin";
 
 import logoMex from "../assets/Logo_mex.png";
 
+// Nombres de los roles del sistema
 const nombresRoles: Record<string, string> = {
   administrador: "Administrador",
   coordinador_regional: "Coordinador regional",
@@ -24,6 +28,7 @@ const nombresRoles: Record<string, string> = {
 };
 
 export default function Header() {
+  // Obtener información del usuario autenticado
   const { identity } = useGetIdentity();
   const { permissions } = usePermissions();
 
@@ -33,19 +38,29 @@ export default function Header() {
 
   return (
     <AppBar
-      position="sticky"
-      elevation={0}
-      className="app-header"
+        position="sticky"
+        elevation={0}
+        className="app-header"
+        sx={{
+            backgroundColor: "background.paper",
+            color: "text.primary",
+            borderBottom: "2px solid",
+            borderColor: "primary.main",
+        }}
     >
       <Toolbar className="app-header-toolbar">
+
+        {/* Botón para abrir/cerrar sidebar */}
         <SidebarToggleButton />
 
+        {/* Logo institucional */}
         <img
           src={logoMex}
           alt="Gobierno de México"
           className="app-header-logo"
         />
 
+        {/* Nombre de la plataforma */}
         <Typography
           className="app-header-title"
           component="div"
@@ -53,7 +68,13 @@ export default function Header() {
           Plataforma de Crecimiento y Desarrollo Saludable
         </Typography>
 
+        {/* Acciones del encabezado */}
         <Box className="app-header-actions">
+
+          {/* Cambiar entre modo claro y oscuro */}
+          <ToggleThemeButton />
+
+          {/* Actualizar la página */}
           <IconButton
             aria-label="Actualizar página"
             title="Actualizar página"
@@ -62,11 +83,8 @@ export default function Header() {
             <RefreshOutlined />
           </IconButton>
 
+          {/* Nombre, rol y menú de usuario */}
           <Box className="app-header-user">
-            <Avatar className="app-header-avatar">
-              {nombre.charAt(0).toUpperCase()}
-            </Avatar>
-
             <Box>
               <Typography className="app-header-username">
                 {nombre}
@@ -76,7 +94,13 @@ export default function Header() {
                 Rol: {nombreRol}
               </Typography>
             </Box>
+
+            {/* Menú desplegable con cerrar sesión */}
+            <UserMenu>
+              <Logout />
+            </UserMenu>
           </Box>
+
         </Box>
       </Toolbar>
     </AppBar>

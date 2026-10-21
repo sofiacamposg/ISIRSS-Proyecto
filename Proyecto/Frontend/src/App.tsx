@@ -1,4 +1,4 @@
-import { Admin, Resource, defaultTheme } from "react-admin";
+import { Admin, Resource, defaultTheme, defaultDarkTheme } from "react-admin";
 import Dashboard from "./pages/Dashboard";
 import { authProvider } from "./pages/AuthProvider";
 import { dataProvider } from "./dataProvider";
@@ -70,6 +70,7 @@ function App() {
     <Admin
       title="Plataforma de Crecimiento y Desarrollo Saludable"
       theme={tema}
+      darkTheme={defaultDarkTheme}
       i18nProvider={i18nProvider}
       dataProvider={dataProvider}
       authProvider={authProvider}

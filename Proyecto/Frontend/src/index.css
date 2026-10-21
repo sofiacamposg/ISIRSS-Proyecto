@@ -85,9 +85,7 @@ a:hover{
 /*HEADER*/
 
 .app-header {
-  background-color: #ffffff !important;
-  color: var(--guinda) !important;
-  border-bottom: 2px solid var(--guinda);
+  width: 100%;
 }
 
 .app-header-toolbar {
