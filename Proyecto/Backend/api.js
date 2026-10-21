@@ -18,6 +18,12 @@ const bodyParser=require("body-parser")
 const argon2=require("argon2");
 const jwt=require("jsonwebtoken");
 app.use(bodyParser.json());
+const ARGON2_OPTIONS = {
+    type: argon2.argon2id,
+    memoryCost: 65536, // 64 MiB en KiB
+    timeCost: 3,       // 3 iteraciones
+    parallelism: 1     // 1 hilo
+};
 
 //Creates a MySQL connection pool
 const pool = mysql.createPool({
@@ -1854,22 +1860,14 @@ function autenticarUsuario(req, res, next) {
 }
 
  // demo
-
 app.post("/login", async (req, res) => {
     try {
         const { correo, password } = req.body;
-
-        if (
-            typeof correo !== "string" ||
-            typeof password !== "string" ||
-            !correo.trim() ||
-            !password
-        ) {
+        if (typeof correo !== "string" || typeof password !== "string" || !correo.trim() || !password) {
             return res.status(400).json({
                 mensaje: "El correo y la contraseña son obligatorios."
             });
         }
-
         const [usuarios] = await pool.execute(
             `SELECT
                 u.id_usuario,
@@ -1885,30 +1883,47 @@ app.post("/login", async (req, res) => {
              LIMIT 1`,
             [correo.trim()]
         );
-
         if (usuarios.length === 0) {
             return res.status(401).json({
                 mensaje: "Credenciales incorrectas."
             });
         }
-
         const usuario = usuarios[0];
-
-        // Comprobación temporal sin cifrado.
-        // Solo funciona si el valor recibido coincide exactamente
-        // con el valor almacenado en password_hash.
-        if (password !== usuario.password_hash) {
+        const passwordGuardada = usuario.password_hash;
+        let passwordValida = false;
+        if (typeof passwordGuardada === "string" && passwordGuardada.startsWith("$argon2")) {
+            // Verificar hashes Argon2 existentes.
+            passwordValida = await argon2.verify(
+                passwordGuardada,
+                password
+            );
+        } else {
+            // Compatibilidad temporal SOLO con contraseñas
+            // que se sabe que están almacenadas en texto plano.
+            passwordValida = password === passwordGuardada;
+            if (passwordValida) {
+                const nuevoHash = await argon2.hash(
+                    password,
+                    ARGON2_OPTIONS
+                );
+                await pool.execute(
+                    `UPDATE usuarios
+                     SET password_hash = ?
+                     WHERE id_usuario = ?`,
+                    [nuevoHash, usuario.id_usuario]
+                );
+            }
+        }
+        if (!passwordValida) {
             return res.status(401).json({
                 mensaje: "Credenciales incorrectas."
             });
         }
-
         if (usuario.estado !== "activo") {
             return res.status(403).json({
                 mensaje: "La cuenta no está activa."
             });
         }
-
         const token = jwt.sign(
             {
                 id_usuario: usuario.id_usuario,
@@ -1918,10 +1933,9 @@ app.post("/login", async (req, res) => {
             JWT_SECRET,
             { expiresIn: "8h" }
         );
-
         return res.json({
             mensaje: "Inicio de sesión correcto.",
-            token: token,
+            token,
             usuario: {
                 id_usuario: usuario.id_usuario,
                 nombre: usuario.nombre,
@@ -1930,10 +1944,8 @@ app.post("/login", async (req, res) => {
                 rol: usuario.rol
             }
         });
-
     } catch (error) {
         console.error("Error en POST /login:", error);
-
         return res.status(500).json({
             mensaje: "Error interno del servidor."
         });
@@ -2274,19 +2286,12 @@ app.post("/usuarios", async (req, res) => {
                 mensaje: "Ya existe un usuario registrado con ese correo."
             });
         }
-        // Temporal: se guarda el valor directamente, sin hash.
-        // Sustituir por un algoritmo seguro antes de usar en producción.
+        const passwordHash = await argon2.hash(password, ARGON2_OPTIONS);
         const [resultado] = await pool.execute(
             `INSERT INTO usuarios
                 (nombre, correo, password_hash, id_rol, estado)
              VALUES (?, ?, ?, ?, ?)`,
-            [
-                nombreLimpio,
-                correoLimpio,
-                password,
-                Number(id_rol),
-                estadoFinal
-            ]
+            [nombreLimpio, correoLimpio, passwordHash, Number(id_rol), estadoFinal]
         );
         const [nuevoUsuario] = await pool.execute(
             `SELECT
@@ -2317,17 +2322,14 @@ app.post("/usuarios", async (req, res) => {
     }
 });
 
-
 app.get("/usuarios/:id", async (req, res) => {
     try {
         const id = Number(req.params.id);
-
         if (!Number.isSafeInteger(id) || id <= 0) {
             return res.status(400).json({
                 mensaje: "El ID del usuario no es válido."
             });
         }
-
         const [usuarios] = await pool.execute(
             `SELECT
                 u.id_usuario AS id,
@@ -2344,13 +2346,11 @@ app.get("/usuarios/:id", async (req, res) => {
              LIMIT 1`,
             [id]
         );
-
         if (usuarios.length === 0) {
             return res.status(404).json({
                 mensaje: "El usuario no existe."
             });
         }
-
         return res.json(usuarios[0]);
     } catch (error) {
         console.error("Error en GET /usuarios/:id:", error);
@@ -2361,17 +2361,14 @@ app.get("/usuarios/:id", async (req, res) => {
     }
 });
 
-
 app.put("/usuarios/:id", async (req, res) => {
     try {
         const id = Number(req.params.id);
-
         if (!Number.isSafeInteger(id) || id <= 0) {
             return res.status(400).json({
                 mensaje: "El ID del usuario no es válido."
             });
         }
-
         const {
             nombre,
             correo,
@@ -2379,111 +2376,83 @@ app.put("/usuarios/:id", async (req, res) => {
             id_rol,
             estado
         } = req.body;
-
-        if (
-            typeof nombre !== "string" ||
-            !nombre.trim() ||
-            typeof correo !== "string" ||
-            !correo.trim() ||
-            !Number.isInteger(Number(id_rol)) ||
-            Number(id_rol) <= 0 ||
-            !["activo", "bloqueado", "baja"].includes(estado)
-        ) {
+        if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0 || !["activo", "bloqueado", "baja"].includes(estado)) {
             return res.status(400).json({
                 mensaje: "Verifica el nombre, correo, rol y estado."
             });
         }
-
         const nombreLimpio = nombre.trim();
         const correoLimpio = correo.trim().toLowerCase();
-
         if (nombreLimpio.length > 150 || correoLimpio.length > 254) {
             return res.status(400).json({
                 mensaje: "El nombre o correo excede la longitud permitida."
             });
         }
-
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
             return res.status(400).json({
                 mensaje: "El correo no tiene un formato válido."
             });
         }
-
-        if (
-            password !== undefined &&
-            (typeof password !== "string" || password.length === 0)
-        ) {
+        // La contraseña es opcional al editar. Si se envía, debe ser una cadena.
+        if (password !== undefined && password !== null && typeof password !== "string") {
             return res.status(400).json({
-                mensaje: "Si proporcionas una contraseña, no puede estar vacía."
+                mensaje: "La contraseña debe ser un texto válido."
             });
         }
-
         const [usuarios] = await pool.execute(
             "SELECT id_usuario FROM usuarios WHERE id_usuario = ?",
             [id]
         );
-
         if (usuarios.length === 0) {
             return res.status(404).json({
                 mensaje: "El usuario no existe."
             });
         }
-
         const [roles] = await pool.execute(
             "SELECT id_rol FROM roles WHERE id_rol = ?",
             [Number(id_rol)]
         );
-
         if (roles.length === 0) {
             return res.status(400).json({
                 mensaje: "El rol seleccionado no existe."
             });
         }
-
         const [duplicados] = await pool.execute(
             `SELECT id_usuario
              FROM usuarios
              WHERE correo = ? AND id_usuario <> ?`,
             [correoLimpio, id]
         );
-
         if (duplicados.length > 0) {
             return res.status(409).json({
                 mensaje: "Ese correo ya está registrado por otro usuario."
             });
         }
-
-        if (password !== undefined) {
-            // Temporal: sin hash, igual que el endpoint de creación actual.
+        // Si se proporcionó una contraseña no vacía, generar el hash con los parámetros Argon2id configurados.
+        if (typeof password === "string" && password.length > 0) {
+            const passwordHash = await argon2.hash(password, ARGON2_OPTIONS);
             await pool.execute(
                 `UPDATE usuarios
-                 SET nombre = ?, correo = ?, id_rol = ?,
-                     estado = ?, password_hash = ?
+                 SET nombre = ?,
+                     correo = ?,
+                     id_rol = ?,
+                     estado = ?,
+                     password_hash = ?
                  WHERE id_usuario = ?`,
-                [
-                    nombreLimpio,
-                    correoLimpio,
-                    Number(id_rol),
-                    estado,
-                    password,
-                    id
-                ]
+                [nombreLimpio, correoLimpio, Number(id_rol), estado, passwordHash, id]
             );
         } else {
+            // Si la contraseña no se proporcionó o está vacía, conservar el hash existente.
             await pool.execute(
                 `UPDATE usuarios
-                 SET nombre = ?, correo = ?, id_rol = ?, estado = ?
+                 SET nombre = ?,
+                     correo = ?,
+                     id_rol = ?,
+                     estado = ?
                  WHERE id_usuario = ?`,
-                [
-                    nombreLimpio,
-                    correoLimpio,
-                    Number(id_rol),
-                    estado,
-                    id
-                ]
+                [nombreLimpio, correoLimpio, Number(id_rol), estado, id]
             );
         }
-
         const [actualizados] = await pool.execute(
             `SELECT
                 u.id_usuario AS id,
@@ -2499,7 +2468,6 @@ app.put("/usuarios/:id", async (req, res) => {
              WHERE u.id_usuario = ?`,
             [id]
         );
-
         return res.json(actualizados[0]);
     } catch (error) {
         if (error.code === "ER_DUP_ENTRY") {
@@ -2507,9 +2475,7 @@ app.put("/usuarios/:id", async (req, res) => {
                 mensaje: "Ese correo ya está registrado."
             });
         }
-
         console.error("Error en PUT /usuarios/:id:", error);
-
         return res.status(500).json({
             mensaje: "Error interno al actualizar el usuario."
         });
