@@ -17,7 +17,9 @@ function AppMenu() {
       {(esAdmin || esCoordinador) && <Menu.ResourceItem name="estados" />}
       {(esAdmin || esCoordinador) && <Menu.ResourceItem name="ebdis" />}
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="mediciones" />}
+      {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="condiciones" options={{ label: "Condicion de salud" }} />}
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="seguimientos" options={{ label: "Seguimiento nutricional" }} />}
+      {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="acciones_seguimiento" options={{ label: "Acciones Seguimiento" }} />}
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="crecimiento" />}
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="alertas" />}
       {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="reportes" />}

@@ -14,6 +14,8 @@ export const authProvider: AuthProvider = {
     if (!cuenta || cuenta.password !== password) {
       throw new Error("Usuario o contraseña incorrectos. Revisa las cuentas de demostración.");
     }
+    // Token temporal para las pruebas; no es un JWT real.
+    sessionStorage.setItem("auth", `demo-${String(username).trim().toLowerCase()}`);
     localStorage.setItem("username", String(username).trim().toLowerCase());
     localStorage.setItem("userRole", cuenta.role);
     localStorage.setItem("userFullName", cuenta.fullName);
@@ -26,10 +28,12 @@ export const authProvider: AuthProvider = {
   },
   async logout() {
     ["username", "userRole", "userFullName", "userRegionId", "userEbdiId", "userInfanteIds"].forEach((key) => localStorage.removeItem(key));
+    sessionStorage.removeItem("auth");
   },
   async checkError({ status }) {
     if (status === 401 || status === 403) {
       ["username", "userRole", "userFullName", "userRegionId", "userEbdiId", "userInfanteIds"].forEach((key) => localStorage.removeItem(key));
+      sessionStorage.removeItem("auth");
       throw new Error("Tu sesión expiró o no tienes permiso para realizar esta acción.");
     }
   },
@@ -60,6 +64,8 @@ export const authProvider: AuthProvider = {
         infantes: ["list", "show"],
         mediciones: ["list", "show"],
         seguimientos: ["list", "show"],
+        condiciones: ["list", "show"],
+        acciones_seguimiento: ["list", "show"],
         crecimiento: ["list", "show"],
         alertas: ["list", "show"],
         reportes: ["list", "show", "export"],
@@ -72,6 +78,8 @@ export const authProvider: AuthProvider = {
         infantes: ["list", "show", "create", "edit"],
         mediciones: ["list", "show", "create", "edit"],
         seguimientos: ["list", "show", "create", "edit"],
+        condiciones: ["list", "show", "create", "edit"],
+        acciones_seguimiento: ["list", "show", "create", "edit"],
         crecimiento: ["list", "show"],
         alertas: ["list", "show"],
         reportes: ["list", "show", "export"]
@@ -80,6 +88,7 @@ export const authProvider: AuthProvider = {
         infantes: ["list", "show"],
         mediciones: ["list", "show"],
         seguimientos: ["list", "show"],
+        condiciones: ["list", "show"],
         crecimiento: ["list", "show"],
       },
     };

@@ -6,6 +6,8 @@ import { TutoresList, TutoresCreate , TutoresShow} from "./pages/Tutores";
 import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
 import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
 import { SeguimientosCreate, SeguimientosEdit, SeguimientosList, SeguimientosShow } from "./pages/Seguimientos";
+import { CondicionesList, CondicionesShow, CondicionesCreate, CondicionesEdit} from "./pages/Condiciones";
+import { AccionesList, AccionesShow, AccionesCreate, AccionesEdit} from "./pages/Acciones";
 import { RegionesList, RegionesCreate, RegionesEdit, RegionesShow, EstadosList, EstadosCreate, EstadosEdit, EstadosShow, EBDIsList, EBDIsCreate, EBDIsEdit, EBDIsShow,} from "./pages/Catalogos";
 import { CrecimientoPage } from "./pages/Crecimiento";
 import { AlertasList } from "./pages/Alertas";
@@ -72,6 +74,22 @@ function App() {
         create={SeguimientosCreate}
         show={SeguimientosShow}
         edit={SeguimientosEdit}
+      />
+      <Resource
+        name="condiciones"
+        options={{ label: "Condiciones de salud" }}
+        list={CondicionesList}
+        create={CondicionesCreate}
+        show={CondicionesShow}
+        edit={CondicionesEdit}
+      />
+      <Resource
+        name="acciones_seguimiento"
+        options={{ label: "Acciones Seguimientos" }}
+        list={AccionesList}
+        create={AccionesCreate}
+        show={AccionesShow}
+        edit={AccionesEdit}
       />
       <Resource
         name="crecimiento"
