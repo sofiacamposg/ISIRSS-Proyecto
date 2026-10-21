@@ -28,6 +28,7 @@ import {
 } from "@mui/icons-material";
 
 import type { ThemeOptions } from "@mui/material";
+import { borderRadius } from "@mui/system";
 
 const accessControlProvider = {
   canAccess: async ({ resource, action }: { resource?: string; action: string }) => {
@@ -68,6 +69,16 @@ const tema: ThemeOptions = {
   },
   typography: {
     fontFamily: '"Noto Sans", Arial, Helvetica, sans-serif', // fuente oficial
+  },
+  components: {
+    RaLayout: {
+      styleOverrides: {
+        root: {
+          // La barra es sticky, así que no hace falta el margen de arriba
+          "& .RaLayout-appFrame": { marginTop: 0 },
+        },
+      },
+    },
   },
 };
 

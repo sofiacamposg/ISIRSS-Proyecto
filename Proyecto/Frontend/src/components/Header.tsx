@@ -1,12 +1,6 @@
-import {
-  AppBar,
-  Toolbar,
-  Box,
-  Typography,
-  IconButton,
-} from "@mui/material";
+import { AppBar, Toolbar, Box, Typography, IconButton, Divider, Avatar } from "@mui/material";
 
-import { RefreshOutlined } from "@mui/icons-material";
+import { RefreshOutlined, PersonOutline } from "@mui/icons-material";
 
 import {
   SidebarToggleButton,
@@ -43,8 +37,8 @@ export default function Header() {
         className="app-header"
         sx={{
             backgroundColor: "background.paper",
-            color: "text.primary",
-            borderBottom: "2px solid",
+            color: "primary.main",
+            borderBottom: "3px solid",
             borderColor: "primary.main",
         }}
     >
@@ -54,16 +48,20 @@ export default function Header() {
         <SidebarToggleButton />
 
         {/* Logo institucional */}
-        <img
-          src={logoMex}
+        <img src={logoMex}
           alt="Gobierno de México"
           className="app-header-logo"
         />
+
+        {/* MUI divider, línea separadora decorativa */}
+        <Divider orientation="vertical" aria-hidden="true" sx={{ height: 36, alignSelf: "center" }} />
 
         {/* Nombre de la plataforma */}
         <Typography
           className="app-header-title"
           component="div"
+          variant="subtitle1"
+          sx={{ fontWeight: 700, flex: 1 }}
         >
           Plataforma de Crecimiento y Desarrollo Saludable
         </Typography>
@@ -76,6 +74,7 @@ export default function Header() {
 
           {/* Actualizar la página */}
           <IconButton
+            color="inherit"
             aria-label="Actualizar página"
             title="Actualizar página"
             onClick={() => window.location.reload()}
@@ -83,22 +82,21 @@ export default function Header() {
             <RefreshOutlined />
           </IconButton>
 
-          {/* Nombre, rol y menú de usuario */}
+          {/* Menú de usuario, muestra el nombre y el rol */}
           <Box className="app-header-user">
-            <Box>
-              <Typography className="app-header-username">
-                {nombre}
-              </Typography>
-
-              <Typography className="app-header-role">
-                Rol: {nombreRol}
-              </Typography>
-            </Box>
-
-            {/* Menú desplegable con cerrar sesión */}
-            <UserMenu>
+            <UserMenu
+            icon={
+              <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
+                <PersonOutline fontSize="small" />
+              </Avatar>
+            }
+          >
               <Logout />
             </UserMenu>
+
+            <Typography variant="body2" color="text.secondary" className="app-header-role">
+              Rol: {nombreRol}
+            </Typography>
           </Box>
 
         </Box>
