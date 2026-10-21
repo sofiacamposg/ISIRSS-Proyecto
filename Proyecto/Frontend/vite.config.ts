@@ -4,4 +4,10 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    watch: {
+      usePolling: true, // fuerza a detectar cuando se guardan files
+      interval: 100, // revisa cambios cada 100ms
+    }
+  }
 })
