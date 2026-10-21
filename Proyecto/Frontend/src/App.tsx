@@ -13,6 +13,19 @@ import { CrecimientoPage } from "./pages/Crecimiento";
 import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
 import AppLayout from "./layout/AppLayout";
+//Icons
+import {
+  PeopleOutline,
+  StraightenOutlined,
+  AssignmentOutlined,
+  ShowChartOutlined,
+  NotificationsNoneOutlined,
+  DescriptionOutlined,
+  BadgeOutlined,
+  MapOutlined,
+  FlagOutlined,
+  ApartmentOutlined,
+} from "@mui/icons-material";
 
 const accessControlProvider = {
   canAccess: async ({ resource, action }: { resource?: string; action: string }) => {
@@ -64,20 +77,15 @@ function App() {
       layout={AppLayout}
     >
       <Resource
-        name="tutores"
-        list={TutoresList}
-        create={TutoresCreate}
-        show={TutoresShow}
-        options={{ label: "Tutores" }}
-      />
-      <Resource
         name="infantes"
         list={InfantesList}
         create={InfantesCreate}
         edit={InfantesEdit}
         show={InfantesShow}
         options={{ label: "Infantes" }}
+        icon={PeopleOutline}
       />
+
       <Resource
         name="mediciones"
         list={MedicionesList}
@@ -85,7 +93,9 @@ function App() {
         edit={MedicionesEdit}
         show={MedicionesShow}
         options={{ label: "Mediciones" }}
+        icon={StraightenOutlined}
       />
+
       <Resource
         name="seguimientos"
         options={{ label: "Seguimiento nutricional" }}
@@ -93,22 +103,39 @@ function App() {
         create={SeguimientosCreate}
         show={SeguimientosShow}
         edit={SeguimientosEdit}
+        icon={AssignmentOutlined}
       />
+
       <Resource
         name="crecimiento"
         options={{ label: "Gráficas de crecimiento" }}
         list={CrecimientoPage}
+        icon={ShowChartOutlined}
       />
+
       <Resource
         name="alertas"
         list={AlertasList}
         options={{ label: "Alertas" }}
+        icon={NotificationsNoneOutlined}
       />
+
       <Resource
         name="reportes"
         list={ReportesPage}
         options={{ label: "Reportes" }}
+        icon={DescriptionOutlined}
       />
+
+      <Resource
+        name="tutores"
+        list={TutoresList}
+        create={TutoresCreate}
+        show={TutoresShow}
+        options={{ label: "Tutores" }}
+        icon={BadgeOutlined}
+      />
+
       <Resource
         name="regiones"
         list={RegionesList}
@@ -116,7 +143,9 @@ function App() {
         edit={RegionesEdit}
         show={RegionesShow}
         options={{ label: "Regiones" }}
+        icon={MapOutlined}
       />
+
       <Resource
         name="estados"
         list={EstadosList}
@@ -124,7 +153,9 @@ function App() {
         edit={EstadosEdit}
         show={EstadosShow}
         options={{ label: "Estados" }}
+        icon={FlagOutlined}
       />
+
       <Resource
         name="ebdis"
         list={EBDIsList}
@@ -132,6 +163,7 @@ function App() {
         edit={EBDIsEdit}
         show={EBDIsShow}
         options={{ label: "EBDI" }}
+        icon={ApartmentOutlined}
       />
     </Admin>
   );

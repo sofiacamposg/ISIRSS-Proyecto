@@ -1,4 +1,6 @@
 import { Layout, type LayoutProps, Menu, usePermissions } from "react-admin";
+//Icon
+import { HomeOutlined } from "@mui/icons-material";
 
 function AppMenu() {
   const { permissions, isLoading } = usePermissions();
@@ -11,7 +13,11 @@ function AppMenu() {
 
   return (
     <Menu>
-      <Menu.DashboardItem primaryText="Inicio" />
+      <Menu.Item
+        to="/"
+        primaryText="Inicio"
+        leftIcon={<HomeOutlined />}
+      />
       {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="infantes" />}
       {(esAdmin || esCoordinador) && <Menu.ResourceItem name="regiones" />}
       {(esAdmin || esCoordinador) && <Menu.ResourceItem name="estados" />}
