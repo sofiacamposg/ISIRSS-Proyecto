@@ -16,6 +16,13 @@ import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
 import { UsuariosList, UsuarioCreate, UsuarioEdit } from "./pages/Usuarios";
 import AppLayout from "./layout/AppLayout";
+//Imports para los links del Footer
+import { CustomRoutes } from "react-admin";
+import { Route } from "react-router-dom";
+import PreguntasFrecuentes from "./pages/PreguntasFrecuentes";
+import AvisoPrivacidad from "./pages/AvisoPrivacidad";
+import Ayuda from "./pages/Ayuda";
+
 //Icons
 import {
   PeopleOutline,
@@ -99,6 +106,22 @@ function App() {
       dashboard={Dashboard}
       layout={AppLayout}
     >
+  
+      <CustomRoutes>
+        <Route
+          path="/preguntas-frecuentes"
+          element={<PreguntasFrecuentes />}
+        />
+        <Route
+          path="/aviso-de-privacidad"
+          element={<AvisoPrivacidad />}
+        />
+        <Route
+          path="/ayuda"
+          element={<Ayuda />}
+        />
+      </CustomRoutes>
+
       <Resource
         name="infantes"
         list={InfantesList}
