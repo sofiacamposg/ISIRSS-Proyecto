@@ -41,6 +41,48 @@ if (!JWT_SECRET) {
     throw new Error("Falta configurar la variable de entorno JWT_SECRET.");
 }
 
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+async function registrarBitacora(req, {accion, entidad, id_registro = null, valor_anterior = null, valor_nuevo = null, motivo = null}) {
+    try {
+        //Obtener el usuario autenticado, si existe.
+        const idUsuario = req?.usuario?.id_usuario ?? null;
+
+        await pool.execute(
+            `INSERT INTO bitacora (
+                id_usuario,
+                accion,
+                entidad,
+                id_registro,
+                valor_anterior,
+                valor_nuevo,
+                motivo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+                idUsuario,
+                accion,
+                entidad,
+                id_registro === null ? null : String(id_registro),
+                valor_anterior == null
+                    ? null
+                    : JSON.stringify(valor_anterior),
+                valor_nuevo == null
+                    ? null
+                    : JSON.stringify(valor_nuevo),
+                motivo
+            ]
+        );
+
+        return true;
+    } catch (error) {
+        // Un error en la bitácora no debe ocultar
+        // el resultado de la operación original.
+        console.error("Error al registrar en bitácora:", error);
+        return false;
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------------
 
 app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
@@ -106,8 +148,13 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
         const [total] = await pool.execute( `SELECT COUNT(*) AS total FROM tutores ${where}`, parametros);
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
+
+        await registrarBitacora(req, {accion: "READ_EXITOSO", entidad: "tutores", motivo: "Consulta de lista de tutores"});
+
         res.json(data);
     } catch (error) {
+        await registrarBitacora(req, {accion: "READ_FALLIDO", entidad: "tutores",motivo: error.message});
+
         console.error("Error al consultar tutores:", error);
         res.status(500).json({
             error: "Error al consultar tutores"
@@ -148,8 +195,11 @@ app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (
             [resultado.insertId]
         );
 
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "tutores", id_registro: resultado.insertId, valor_nuevo: rows[0] });
+
         res.status(201).json(rows[0]);
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "tutores", valor_nuevo: req.body, motivo: error.message });
         console.error("Error al crear tutor:", error);
         res.status(500).json({ error: "Error al registrar tutor" });
     }
@@ -171,9 +221,11 @@ async function getOneTutor(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: collection, id_registro: id, motivo: "Tutor no encontrado" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: collection, id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -181,6 +233,7 @@ app.get("/tutores/:id", autenticarUsuario, autorizarRoles("administrador", "coor
     try {
         await getOneTutor("tutores", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "tutores", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
@@ -206,6 +259,7 @@ async function getListInfantes(collection, req, res) {
              WHERE i.id_infante IN (${placeholders})`,
             ids
         );
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: collection, motivo: "Consulta de infantes" });
         return res.json(data);
     }
     // Paginación
@@ -361,6 +415,8 @@ async function getListInfantes(collection, req, res) {
     // Enviar total para la paginación de React-Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: collection, motivo: "Consulta de infantes" });
     return res.json(data);
 }
 
@@ -376,6 +432,7 @@ app.get("/infantes", autenticarUsuario, autorizarRoles("administrador", "coordin
         }
 
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "infantes", motivo: error.message });
         console.error("Error en GET /infantes:", error);
         res.status(500).json({ error: error.message });
     }
@@ -398,13 +455,13 @@ async function createInfante(req, res) {
         parentesco
     } = req.body;
 
-    // const creado_por = req.user?.id_usuario;
+    const creado_por = req.usuario.id_usuario;
 
-    // if (!creado_por) {
-    //     return res.status(401).json({
-    //         error: "Usuario no autenticado"
-    //     });
-    // }
+    if (!creado_por) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     if (
         !matricula ||
@@ -470,7 +527,7 @@ async function createInfante(req, res) {
                 id_ebdi,
                 activo ?? true,
                 restricciones_nutricionales || null,
-                1
+                creado_por
             ]
         );
 
@@ -488,6 +545,8 @@ async function createInfante(req, res) {
 
         // Recuperar el infante creado.
         await connection.commit();
+
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "infantes", id_registro: id_infante, valor_nuevo: { matricula, nombre, apellido_paterno, apellido_materno, curp, fecha_nacimiento, sexo_patron, fecha_ingreso, id_ebdi, activo: activo ?? true, restricciones_nutricionales, id_tutor, parentesco } });
 
         return res.status(201).json({
             id: id_infante,
@@ -517,6 +576,8 @@ app.post("/infantes", autenticarUsuario, autorizarRoles("administrador", "estanc
     try {
         await createInfante(req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "infantes", valor_nuevo: req.body, motivo: error.message });
+
         console.error("Error al crear infante:", error);
 
         if (res.headersSent) return;
@@ -595,9 +656,11 @@ async function getOneInfante(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "infantes", id_registro: id, motivo: "Infante no encontrado" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "infantes", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -605,6 +668,7 @@ app.get("/infantes/:id", autenticarUsuario, autorizarRoles("administrador", "coo
     try {
         await getOneInfante("infantes", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "infantes", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
@@ -824,6 +888,7 @@ async function updateInfante(req, res) {
             [id]
         );
 
+        await registrarBitacora(req, { accion: "UPDATE_EXITOSO", entidad: "infantes", id_registro: id, valor_anterior: null, valor_nuevo: datos[0] });
         return res.json(datos[0]);
 
     } catch (error) {
@@ -834,6 +899,7 @@ async function updateInfante(req, res) {
                 console.error("Error al cancelar la transacción:", errorRollback);
             }
         }
+        await registrarBitacora(req, { accion: "UPDATE_FALLIDO", entidad: "infantes", id_registro: id, valor_nuevo: req.body, motivo: error.message });
 
         // Mostrar la causa real en la terminal de Express
         console.error("Error al actualizar infante:", {
@@ -905,6 +971,7 @@ async function getListRegiones(collection, req, res) {
             ids
         );
 
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "regiones", motivo: "Consulta de regiones por ID" });
         return res.json(data);
     }
 
@@ -941,6 +1008,7 @@ async function getListRegiones(collection, req, res) {
     // Enviar total para la paginación de React Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "regiones", motivo: "Consulta de lista de regiones" });
     res.json(data);
 }
 
@@ -956,6 +1024,7 @@ app.get("/regiones", autenticarUsuario, autorizarRoles("administrador"), async (
         }
 
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "regiones", motivo: error.message });
         console.error("Error en GET /regiones:", error);
         res.status(500).json({ error: error.message });
     }
@@ -972,9 +1041,11 @@ async function getOneRegion(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "regiones", id_registro: id, motivo: "Región no encontrada" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "regiones", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -982,6 +1053,7 @@ app.get("/regiones/:id", autenticarUsuario, autorizarRoles("administrador"), asy
     try {
         await getOneRegion("regiones", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "regiones", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
@@ -1018,6 +1090,7 @@ async function getListEstados(collection, req, res) {
     // Enviar total para la paginación de React Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "estados", motivo: "Consulta de lista de estados" });
     res.json(data);
 }
 
@@ -1033,6 +1106,7 @@ app.get("/estados", autenticarUsuario, autorizarRoles("administrador", "coordina
         }
 
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "estados", motivo: error.message });
         console.error("Error en GET /estados:", error);
         res.status(500).json({ error: error.message });
     }
@@ -1050,9 +1124,11 @@ async function getOneEstado(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "estados", id_registro: id, motivo: "Estado no encontrado" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "estados", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -1060,6 +1136,7 @@ app.get("/estados/:id", autenticarUsuario, autorizarRoles("administrador", "coor
     try {
         await getOneEstado("estados", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "estados", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
@@ -1092,6 +1169,7 @@ async function getListEbdi(collection, req, res) {
             ids
         );
 
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "ebdi", motivo: "Consulta de EBDI por ID" });
         return res.json(data);
     }
 
@@ -1134,6 +1212,7 @@ async function getListEbdi(collection, req, res) {
     // Enviar total para la paginación de React Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "ebdi", motivo: "Consulta de lista de EBDI" });
     res.json(data);
 }
 
@@ -1149,6 +1228,7 @@ app.get("/ebdis", autenticarUsuario, autorizarRoles("administrador", "coordinado
         }
 
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "ebdi", motivo: error.message });
         console.error("Error en GET /ebdis:", error);
         res.status(500).json({ error: error.message });
     }
@@ -1174,9 +1254,11 @@ async function getOneEbdi(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "ebdi", id_registro: id, motivo: "EBDI no encontrada" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "ebdi", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -1184,6 +1266,7 @@ app.get("/ebdis/:id", autenticarUsuario, autorizarRoles("administrador", "coordi
     try {
         await getOneEbdi("ebdis", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "ebdi", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
@@ -1261,6 +1344,7 @@ async function getListMediciones(collection, req, res) {
     // Enviar total para la paginación de React-Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "mediciones", motivo: "Consulta de lista de mediciones" });
     res.json(data);
 }
 
@@ -1301,46 +1385,7 @@ async function getMedicionesPorInfante(req, res) {
     );
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
-    return res.json(data);
-}
-
-//Funcion especifica para mediciones en la pantalla de show /infantes
-async function getMedicionesPorInfante(req, res) {
-    const idInfante = Number(req.query.id);
-    if (!Number.isInteger(idInfante) || idInfante <= 0) {
-        return res.status(400).json({
-            error: "El ID del infante no es válido."
-        });
-    }
-    const inicio = Math.max(0, Number(req.query._start) || 0);
-    const finSolicitado = Number(req.query._end);
-    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
-    const limite = fin - inicio;
-    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-    const [data] = await pool.execute(
-        `SELECT
-            m.id_medicion AS id,
-            m.id_medicion,
-            m.id_infante,
-            m.fecha_medicion,
-            m.peso_kg,
-            m.talla_cm,
-            m.perimetro_cefalico_cm,
-            m.observaciones
-         FROM mediciones_vigentes m
-         WHERE m.id_infante = ?
-         ORDER BY m.fecha_medicion ${sortOrder}, m.id_medicion ${sortOrder}
-         LIMIT ? OFFSET ?`,
-        [idInfante, limite, inicio]
-    );
-    const [total] = await pool.execute(
-        `SELECT COUNT(*) AS total
-         FROM mediciones_vigentes
-         WHERE id_infante = ?`,
-        [idInfante]
-    );
-    res.set("Access-Control-Expose-Headers", "X-Total-Count");
-    res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "mediciones", id_registro: idInfante, motivo: "Consulta de mediciones por infante" });
     return res.json(data);
 }
 
@@ -1362,6 +1407,7 @@ app.get("/mediciones", autenticarUsuario, autorizarRoles("administrador", "coord
         return await getListMediciones("mediciones", req, res);
 
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "mediciones", motivo: error.message });
         console.error("Error en GET /mediciones:", error);
 
         if (!res.headersSent) {
@@ -1387,8 +1433,13 @@ async function createMedicion(req, res) {
         estado_nutricional_registrado
     } = req.body;
 
-    // ID temporal hasta terminar la autenticación.
-    const usuarioId = 1;
+    const creado_por = req.usuario.id_usuario;
+
+    if (!creado_por) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     if (
         !id_infante ||
@@ -1461,7 +1512,7 @@ async function createMedicion(req, res) {
                 id_ebdi_captura,
                 creado_por
             ) VALUES (?, ?, ?)`,
-            [id_infante, id_ebdi_captura, usuarioId]
+            [id_infante, id_ebdi_captura, creado_por]
         );
 
         const id_medicion = resultado.insertId;
@@ -1500,11 +1551,12 @@ async function createMedicion(req, res) {
                     : null,
                 observaciones || null,
                 estado_nutricional_registrado || null,
-                usuarioId
+                creado_por
             ]
         );
 
         await connection.commit();
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "mediciones", id_registro: id_medicion, valor_nuevo: { id_infante, id_ebdi_captura, fecha_medicion, peso_kg, talla_cm, tipo_talla, perimetro_cefalico_cm, tipo, motivo_extraordinaria, observaciones, estado_nutricional_registrado, numero_version: 1 } });
 
         // React Admin necesita que la respuesta incluya "id".
         return res.status(201).json({
@@ -1541,6 +1593,7 @@ app.post("/mediciones", autenticarUsuario, autorizarRoles("administrador", "esta
     try {
         await createMedicion(req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "mediciones", valor_nuevo: req.body, motivo: error.message });
         console.error("Error al crear medición:", error);
 
         if (res.headersSent) return;
@@ -1591,9 +1644,11 @@ async function getOneMedicion(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "mediciones", id_registro: id, motivo: "Medición no encontrada" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "mediciones", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -1601,15 +1656,21 @@ app.get("/mediciones/:id", autenticarUsuario, autorizarRoles("administrador", "c
     try {
         await getOneMedicion("mediciones", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "mediciones", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
 });
 
-
 async function updateMedicion(req, res) {
     const id_medicion = Number(req.params.id);
-    const usuarioId = 1; // Temporal, mientras se implementa la autenticación real.
+    const creado_por = req.usuario.id_usuario;
+
+    if (!creado_por) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     const {
         fecha_medicion,
@@ -1828,12 +1889,13 @@ async function updateMedicion(req, res) {
                 nuevasObservaciones,
                 actual.estado_nutricional_registrado,
                 motivo_correccion.trim(),
-                usuarioId
+                creado_por
             ]
         );
 
         //Confirmar la transacción
         await connection.commit();
+        await registrarBitacora(req, { accion: "UPDATE_EXITOSO", entidad: "mediciones", id_registro: id_medicion, valor_anterior: actual, valor_nuevo: { id_medicion, numero_version: nuevoNumeroVersion, fecha_medicion: nuevaFecha, peso_kg: nuevoPeso, talla_cm: nuevaTalla, tipo_talla: nuevoTipoTalla, perimetro_cefalico_cm: nuevoPerimetro, tipo: nuevoTipo, motivo_extraordinaria: nuevoMotivoExtraordinaria, observaciones: nuevasObservaciones, motivo_correccion: motivo_correccion.trim() }, motivo: motivo_correccion.trim() });
 
         //Responder con los datos de la nueva versión
         res.json({
@@ -1860,6 +1922,7 @@ async function updateMedicion(req, res) {
             await connection.rollback();
         }
 
+        await registrarBitacora(req, { accion: "UPDATE_FALLIDO", entidad: "mediciones", id_registro: id_medicion, valor_nuevo: req.body, motivo: error.message });
         console.error("Error al corregir medición:", error);
 
         res.status(500).json({
@@ -1924,6 +1987,7 @@ async function getListSeguimientos(collection, req, res) {
              WHERE s.id_seguimiento IN (${placeholders})`,
             ids
         );
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "seguimientos", motivo: "Consulta de seguimientos por ID" });
         return res.json(data);
     }
     // Paginación
@@ -1984,6 +2048,7 @@ async function getListSeguimientos(collection, req, res) {
     const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM seguimientos s ${where}`, parametros);
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "seguimientos", motivo: "Consulta de lista de seguimientos" });
     res.json(data);
 }
 
@@ -1999,6 +2064,7 @@ app.get("/seguimientos", autenticarUsuario, autorizarRoles("administrador", "coo
         }
 
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "seguimientos", motivo: error.message });
         console.error("Error en GET /seguimientos:", error);
         res.status(500).json({ error: error.message });
     }
@@ -2013,7 +2079,13 @@ async function createSeguimiento(req, res) {
         estado
     } = req.body;
 
-    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+    const creado_por = req.usuario.id_usuario;
+
+    if (!creado_por) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     const estadosValidos = [
         "requiere_seguimiento",
@@ -2117,11 +2189,12 @@ async function createSeguimiento(req, res) {
                 motivo.trim(),
                 estado,
                 fechaTexto,
-                usuarioId
+                creado_por
             ]
         );
 
         await conexion.commit();
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "seguimientos", id_registro: resultado.insertId, valor_nuevo: { id_infante: Number(id_infante), id_condicion: condicionId, fecha_apertura: fechaTexto, motivo: motivo.trim(), estado, fecha_cierre: null } });
 
         return res.status(201).json({
             id: resultado.insertId,
@@ -2139,6 +2212,7 @@ async function createSeguimiento(req, res) {
             await conexion.rollback();
         }
 
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "seguimientos", valor_nuevo: req.body, motivo: error.message });
         console.error("Error al crear seguimiento:", error);
 
         if (
@@ -2192,9 +2266,11 @@ async function getOneSeguimiento(collection, id, req, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "seguimientos", id_registro: id, motivo: "Seguimiento no encontrado" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "seguimientos", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
@@ -2202,6 +2278,7 @@ app.get("/seguimientos/:id", autenticarUsuario, autorizarRoles("administrador", 
     try {
         await getOneSeguimiento("seguimientos", Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "seguimientos", id_registro: req.params.id, motivo: error.message });
         res.sendStatus(500);
         throw error;
     }
@@ -2209,7 +2286,13 @@ app.get("/seguimientos/:id", autenticarUsuario, autorizarRoles("administrador", 
 
 async function updateSeguimiento(req, res) {
     const idSeguimiento = Number(req.params.id);
-    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+    const usuarioId = req.usuario.id_usuario;
+
+    if (!usuarioId) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     const {
         id_infante,
@@ -2245,7 +2328,7 @@ async function updateSeguimiento(req, res) {
 
     const fechaAperturaTexto = String(fecha_apertura).slice(0, 10);
 
-    const fechaConvertida = convertirFecha(fechaTexto);
+    const fechaConvertida = convertirFecha(fechaAperturaTexto);
 
     if (
         !fechaConvertida ||
@@ -2391,6 +2474,7 @@ async function updateSeguimiento(req, res) {
         );
 
         await conexion.commit();
+        await registrarBitacora(req, { accion: "UPDATE_EXITOSO", entidad: "seguimientos", id_registro: idSeguimiento, valor_anterior: actual, valor_nuevo: { id_infante: Number(id_infante), id_condicion: nuevaCondicionId, fecha_apertura: fechaAperturaTexto, motivo: motivo.trim(), estado, fecha_cierre: nuevaFechaCierre } });
 
         return res.json({
             id: idSeguimiento,
@@ -2408,6 +2492,7 @@ async function updateSeguimiento(req, res) {
             await conexion.rollback();
         }
 
+        await registrarBitacora(req, { accion: "UPDATE_FALLIDO", entidad: "seguimientos", id_registro: idSeguimiento, valor_nuevo: req.body, motivo: error.message });
         console.error("Error al actualizar seguimiento:", error);
 
         if (
@@ -2505,6 +2590,7 @@ async function getListCondiciones(req, res) {
     const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM condiciones_salud c ${where}`, parametros);
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "condiciones_salud", motivo: "Consulta de lista de condiciones de salud" });
     res.json(data);
 }
 
@@ -2518,6 +2604,7 @@ app.get("/condiciones", autenticarUsuario, autorizarRoles("administrador", "coor
             await getListCondiciones(req, res);
         }
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "condiciones_salud", motivo: error.message });
         console.error("Error en GET /condiciones:", error);
         res.status(500).json({
             error: "Error al consultar las condiciones de salud."
@@ -2525,7 +2612,7 @@ app.get("/condiciones", autenticarUsuario, autorizarRoles("administrador", "coor
     }
 });
 
-async function getOneCondicion(id, res) {
+async function getOneCondicion(id, req, res) {
     const [data] = await pool.execute(
         `SELECT
             id_condicion AS id,
@@ -2540,16 +2627,19 @@ async function getOneCondicion(id, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "condiciones_salud", id_registro: id, motivo: "Condición de salud no encontrada" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "condiciones_salud", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
 app.get("/condiciones/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-        await getOneCondicion(Number(req.params.id), res);
+        await getOneCondicion(Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "condiciones_salud", id_registro: req.params.id, motivo: error.message });
         console.error("Error en GET /condiciones/:id:", error);
         res.status(500).json({
             error: "Error al consultar la condición."
@@ -2559,7 +2649,13 @@ app.get("/condiciones/:id", autenticarUsuario, autorizarRoles("administrador", "
 
 async function createCondicion(req, res) {
     const { id_infante, fecha_registro, descripcion } = req.body;
-    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+    const usuarioId = req.usuario.id_usuario;
+
+    if (!usuarioId) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     const infanteId = Number(id_infante);
     const fechaTexto = convertirFecha(fecha_registro);
@@ -2604,6 +2700,7 @@ async function createCondicion(req, res) {
             ]
         );
 
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "condiciones_salud", id_registro: resultado.insertId, valor_nuevo: { id_infante: infanteId, descripcion: descripcion.trim(), fecha_registro: fechaTexto, registrado_por: usuarioId } });
         return res.status(201).json({
             id: resultado.insertId,
             id_condicion: resultado.insertId,
@@ -2613,6 +2710,7 @@ async function createCondicion(req, res) {
             registrado_por: usuarioId
         });
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "condiciones_salud", valor_nuevo: req.body, motivo: error.message });
         console.error("Error al crear condición:", error);
 
         if (
@@ -2662,9 +2760,9 @@ async function updateCondicion(req, res) {
 
     try {
         const [actuales] = await pool.execute(
-            `SELECT id_condicion
-             FROM condiciones_salud
-             WHERE id_condicion = ?`,
+            `SELECT id_condicion, id_infante, fecha_registro, descripcion, registrado_por
+            FROM condiciones_salud
+            WHERE id_condicion = ?`,
             [idCondicion]
         );
 
@@ -2695,8 +2793,10 @@ async function updateCondicion(req, res) {
             [idCondicion]
         );
 
+        await registrarBitacora(req, { accion: "UPDATE_EXITOSO", entidad: "condiciones_salud", id_registro: idCondicion, valor_anterior: actuales[0], valor_nuevo: data[0] });
         return res.json(data[0]);
     } catch (error) {
+        await registrarBitacora(req, { accion: "UPDATE_FALLIDO", entidad: "condiciones_salud", id_registro: idCondicion, valor_nuevo: req.body, motivo: error.message });
         console.error("Error al actualizar condición:", error);
 
         return res.status(500).json({
@@ -2797,6 +2897,7 @@ async function getListAccionesSeguimiento(req, res) {
 
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "acciones_seguimiento", motivo: "Consulta de lista de acciones de seguimiento" });
     res.json(data);
 }
 
@@ -2808,6 +2909,7 @@ app.get("/acciones_seguimiento", autenticarUsuario, autorizarRoles("administrado
             await getListAccionesSeguimiento(req, res);
         }
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "acciones_seguimiento", motivo: error.message });
         console.error("Error en GET /acciones_seguimiento:", error);
         res.status(500).json({
             error: "Error al consultar las acciones."
@@ -2815,7 +2917,7 @@ app.get("/acciones_seguimiento", autenticarUsuario, autorizarRoles("administrado
     }
 });
 
-async function getOneAccionSeguimiento(id, res) {
+async function getOneAccionSeguimiento(id, req, res) {
     const [data] = await pool.execute(
         `SELECT
             a.id_accion AS id,
@@ -2837,19 +2939,19 @@ async function getOneAccionSeguimiento(id, res) {
     );
 
     if (data.length === 0) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "acciones_seguimiento", id_registro: id, motivo: "Acción de seguimiento no encontrada" });
         return res.sendStatus(404);
     }
 
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "acciones_seguimiento", id_registro: id, valor_nuevo: data[0] });
     res.json(data[0]);
 }
 
 app.get("/acciones_seguimiento/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-        await getOneAccionSeguimiento(
-            Number(req.params.id),
-            res
-        );
+        await getOneAccionSeguimiento(Number(req.params.id), req, res);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "acciones_seguimiento", id_registro: req.params.id, motivo: error.message });
         console.error("Error al consultar la acción:", error);
         res.status(500).json({
             error: "Error al consultar la acción."
@@ -2868,7 +2970,13 @@ async function createAccionSeguimiento(req, res) {
         responsable_usuario
     } = req.body;
 
-    const usuarioId = 1; // Temporal hasta conectar la autenticación.
+    const usuarioId = req.usuario.id_usuario;
+
+    if (!usuarioId) {
+        return res.status(401).json({
+            error: "Usuario no autenticado"
+        });
+    }
 
     const infanteId = Number(id_infante);
     const seguimientoId = Number(id_seguimiento);
@@ -2943,6 +3051,7 @@ async function createAccionSeguimiento(req, res) {
             ]
         );
 
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "acciones_seguimiento", id_registro: resultado.insertId, valor_nuevo: { id_infante: infanteId, id_seguimiento: seguimientoId, fecha: fechaTexto, observaciones: observaciones?.trim() || null, acciones_realizadas: acciones_realizadas.trim(), responsable_nombre: responsable_nombre.trim(), responsable_usuario: responsableUsuarioId, registrado_por: usuarioId } });
         return res.status(201).json({
             id: resultado.insertId,
             id_accion: resultado.insertId,
@@ -2956,6 +3065,7 @@ async function createAccionSeguimiento(req, res) {
             registrado_por: usuarioId
         });
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "acciones_seguimiento", valor_nuevo: req.body, motivo: error.message });
         console.error("Error al crear acción de seguimiento:", error);
 
         if (
@@ -3041,9 +3151,7 @@ async function updateAccionSeguimiento(req, res) {
 
     try {
         const [actuales] = await pool.execute(
-            `SELECT id_accion
-             FROM acciones_seguimiento
-             WHERE id_accion = ?`,
+            `SELECT * FROM acciones_seguimiento WHERE id_accion = ?`,
             [idAccion]
         );
 
@@ -3107,8 +3215,10 @@ async function updateAccionSeguimiento(req, res) {
             [idAccion]
         );
 
+        await registrarBitacora(req, { accion: "UPDATE_EXITOSO", entidad: "acciones_seguimiento", id_registro: idAccion, valor_anterior: actuales[0], valor_nuevo: data[0] });
         return res.json(data[0]);
     } catch (error) {
+        await registrarBitacora(req, { accion: "UPDATE_FALLIDO", entidad: "acciones_seguimiento", id_registro: idAccion, valor_nuevo: req.body, motivo: error.message });
         console.error("Error al actualizar acción:", error);
 
         if (
@@ -3161,16 +3271,19 @@ app.post("/registrarse", autenticarUsuario, autorizarRoles("administrador"), asy
                 saltLength: 128
             });
 
-            await pool.execute(
+            const [resultado] = await pool.execute(
                 "INSERT INTO usuarios (usuario, password) VALUES (?, ?)",
                 [user, hash]
             );
+            await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "usuarios", id_registro: resultado.insertId, valor_nuevo: { usuario: user }, motivo: "Registro de usuario" });
 
             res.sendStatus(201);
         } else {
+            await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "usuarios", valor_nuevo: { usuario: user }, motivo: "El usuario ya existe" });
             res.sendStatus(403);
         }
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "usuarios", valor_nuevo: { usuario: req.body.username }, motivo: error.message });
         res.sendStatus(500);
     }
 });
@@ -3240,6 +3353,7 @@ app.post("/login", async (req, res) => {
             [correo.trim()]
         );
         if (usuarios.length === 0) {
+            await registrarBitacora(req, { accion: "LOGIN_FALLIDO", entidad: "usuarios", valor_nuevo: { correo: correo.trim() }, motivo: "Credenciales incorrectas" });
             return res.status(401).json({
                 mensaje: "Credenciales incorrectas."
             });
@@ -3264,11 +3378,13 @@ app.post("/login", async (req, res) => {
             }
         }
         if (!passwordValida) {
+            await registrarBitacora(req, { accion: "LOGIN_FALLIDO", entidad: "usuarios", valor_nuevo: { correo: correo.trim() }, motivo: "Credenciales incorrectas" });
             return res.status(401).json({
                 mensaje: "Credenciales incorrectas."
             });
         }
         if (usuario.estado !== "activo") {
+            await registrarBitacora(req, { accion: "LOGIN_FALLIDO", entidad: "usuarios", id_registro: usuario.id_usuario, valor_nuevo: { correo: usuario.correo }, motivo: "La cuenta no está activa" });
             return res.status(403).json({
                 mensaje: "La cuenta no está activa."
             });
@@ -3282,6 +3398,8 @@ app.post("/login", async (req, res) => {
             JWT_SECRET,
             { expiresIn: "8h" }
         );
+
+        await registrarBitacora(req, { accion: "LOGIN_EXITOSO", entidad: "usuarios", id_registro: usuario.id_usuario, valor_nuevo: { correo: usuario.correo, rol: usuario.rol } });
         return res.json({
             mensaje: "Inicio de sesión correcto.",
             token,
@@ -3294,6 +3412,7 @@ app.post("/login", async (req, res) => {
             }
         });
     } catch (error) {
+        await registrarBitacora(req, { accion: "LOGIN_FALLIDO", entidad: "usuarios", valor_nuevo: { correo: req.body?.correo }, motivo: error.message });
         console.error("Error en POST /login:", error);
         return res.status(500).json({
             mensaje: "Error interno del servidor."
@@ -3322,10 +3441,13 @@ app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
             });
         }
         if (usuarios[0].estado !== "activo") {
+            await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "usuarios", id_registro: idUsuario, motivo: "La cuenta no está activa" });
             return res.status(403).json({
                 mensaje: "La cuenta no está activa."
             });
         }
+
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "usuarios", id_registro: idUsuario, valor_nuevo: { id_usuario: usuarios[0].id_usuario, nombre: usuarios[0].nombre, correo: usuarios[0].correo, id_rol: usuarios[0].id_rol } });
         return res.json({
             id_usuario: usuarios[0].id_usuario,
             nombre: usuarios[0].nombre,
@@ -3333,6 +3455,7 @@ app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
             id_rol: usuarios[0].id_rol
         });
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "usuarios", id_registro: req.usuario?.id_usuario, motivo: error.message });
         console.error("Error en GET /usuario-actual:", error);
         return res.status(500).json({
             mensaje: "Error al consultar el usuario actual."
@@ -3400,8 +3523,10 @@ app.get("/alertas", autenticarUsuario, autorizarRoles("administrador", "coordina
         const [total] = await pool.execute("SELECT COUNT(*) AS total FROM alertas");
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "alertas", motivo: "Consulta de lista de alertas" });
         res.json(data);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "alertas", motivo: error.message });
         console.error("Error al consultar alertas:", error);
         res.status(500).json({
             error: "Error al consultar las alertas",
@@ -3484,8 +3609,10 @@ async function detectarMedicionesPendientes() {
 app.post("/alertas/detectar-mediciones-pendientes", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
         const resultado = await detectarMedicionesPendientes();
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "alertas", valor_nuevo: resultado, motivo: "Detección manual de mediciones pendientes" });
         res.json(resultado);
     } catch (error) {
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "alertas", motivo: error.message });
         console.error("Error al detectar mediciones pendientes:", error);
         res.status(500).json({
             error: "No se pudieron detectar las mediciones pendientes."
@@ -3570,8 +3697,10 @@ app.get("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async (
         );
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "usuarios", valor_nuevo: { total: total[0].total }, motivo: "Consulta de lista de usuarios" });
         res.json(usuarios);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "usuarios", motivo: error.message });
         console.error("Error en GET /usuarios:", error);
         res.status(500).json({
             mensaje: "Error al consultar usuarios."
@@ -3597,8 +3726,10 @@ app.get("/roles", autenticarUsuario, autorizarRoles("administrador"), async (req
         const [total] = await pool.execute("SELECT COUNT(*) AS total FROM roles");
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "roles", valor_nuevo: { total: total[0].total }, motivo: "Consulta de lista de roles" });
         res.json(roles);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "roles", motivo: error.message });
         console.error("Error en GET /roles:", error);
         res.status(500).json({
             mensaje: "Error al consultar roles."
@@ -3672,6 +3803,8 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
              WHERE u.id_usuario = ?`,
             [resultado.insertId]
         );
+
+        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "usuarios", id_registro: resultado.insertId, valor_nuevo: { nombre: nombreLimpio, correo: correoLimpio, id_rol: Number(id_rol), estado: estadoFinal }, motivo: "Creación de usuario" });
         return res.status(201).json(nuevoUsuario[0]);
     } catch (error) {
         if (error.code === "ER_DUP_ENTRY") {
@@ -3679,6 +3812,8 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                 mensaje: "Ya existe un usuario registrado con ese correo."
             });
         }
+
+        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "usuarios", valor_nuevo: { nombre: req.body?.nombre, correo: req.body?.correo }, motivo: error.message });
         console.error("Error en POST /usuarios:", error);
         return res.status(500).json({
             mensaje: "Error interno al crear el usuario."
@@ -3711,12 +3846,16 @@ app.get("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
             [id]
         );
         if (usuarios.length === 0) {
+            await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "usuarios", id_registro: id, motivo: "El usuario no existe" });
             return res.status(404).json({
                 mensaje: "El usuario no existe."
             });
         }
+
+        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "usuarios", id_registro: id, valor_nuevo: usuarios[0], motivo: "Consulta de usuario por ID" });
         return res.json(usuarios[0]);
     } catch (error) {
+        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "usuarios", id_registro: Number(req.params.id) || null, motivo: error.message });
         console.error("Error en GET /usuarios/:id:", error);
 
         return res.status(500).json({
@@ -3758,7 +3897,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
             });
         }
         const [usuarios] = await pool.execute(
-            "SELECT id_usuario FROM usuarios WHERE id_usuario = ?",
+            "SELECT id_usuario, nombre, correo, id_rol, estado FROM usuarios WHERE id_usuario = ?",
             [id]
         );
         if (usuarios.length === 0) {
@@ -3826,6 +3965,8 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
              WHERE u.id_usuario = ?`,
             [id]
         );
+
+        await registrarBitacora(req, { accion: "UPDATE_EXITOSO", entidad: "usuarios", id_registro: id, valor_anterior: usuarios[0], valor_nuevo: actualizados[0], motivo: "Actualización de usuario" });
         return res.json(actualizados[0]);
     } catch (error) {
         if (error.code === "ER_DUP_ENTRY") {
@@ -3833,6 +3974,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 mensaje: "Ese correo ya está registrado."
             });
         }
+        await registrarBitacora(req, { accion: "UPDATE_FALLIDO", entidad: "usuarios", id_registro: Number(req.params.id) || null, valor_nuevo: { nombre: req.body?.nombre, correo: req.body?.correo, id_rol: req.body?.id_rol, estado: req.body?.estado }, motivo: error.message });
         console.error("Error en PUT /usuarios/:id:", error);
         return res.status(500).json({
             mensaje: "Error interno al actualizar el usuario."
