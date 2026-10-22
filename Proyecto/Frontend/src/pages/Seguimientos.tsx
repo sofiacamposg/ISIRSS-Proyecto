@@ -1,15 +1,24 @@
 import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer} from "react-admin";
 
+// Opciones de estado utilizadas en los formularios.
 const estadosSeguimiento = [
-  { id: "Sin seguimiento", name: "Sin seguimiento" },
-  { id: "Requiere seguimiento", name: "Requiere seguimiento" },
-  { id: "En seguimiento", name: "En seguimiento" },
-  { id: "Seguimiento concluido", name: "Seguimiento concluido" },
+    { id: "requiere_seguimiento", name: "Requiere seguimiento" },
+    { id: "en_seguimiento", name: "En seguimiento" },
+    { id: "concluido", name: "Seguimiento concluido" },
+];
+
+const seguimientosFilters = [
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" >
+        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes"/>
+    </ReferenceInput>,
+    <DateInput key="fecha_apertura" source="fecha_apertura" label="Fecha de apertura" />,
+    <TextInput key="motivo" source="motivo"label="Motivo" />,
+    <SelectInput key="estado" source="estado" label="Estado" choices={estadosSeguimiento} emptyText="Todos los estados" alwaysOn/>,
 ];
 
 export function SeguimientosList() {
   return (
-    <List title="Seguimiento nutricional">
+    <List title="Seguimiento nutricional" filters={seguimientosFilters}>
       <Datagrid rowClick="show">
         <TextField source="id" label="ID" />
         <ReferenceField source="id_infante" reference="infantes" label="Infante">
@@ -43,17 +52,16 @@ export function SeguimientosCreate() {
         </FormDataConsumer>
         <DateInput source="fecha_apertura" label="Fecha de apertura" validate={required()}/>
         <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} multiline fullWidth/>
-        <SelectInput source="estado" label="Estado del seguimiento"
-          choices={[
-            {
-              id: "requiere_seguimiento",
-              name: "Requiere seguimiento"
-            },
-            {
-              id: "en_seguimiento",
-              name: "En seguimiento"
-            }
-          ]} defaultValue="requiere_seguimiento" validate={required()} fullWidth/>
+        <SelectInput
+          source="estado"
+          label="Estado del seguimiento"
+          choices={estadosSeguimiento.filter(
+            (estado) => estado.id !== "concluido"
+          )}
+          defaultValue="requiere_seguimiento"
+          validate={required()}
+          fullWidth
+        />
       </SimpleForm>
     </Create>
   );
@@ -94,22 +102,13 @@ export function SeguimientosEdit() {
         </FormDataConsumer>
         <DateInput source="fecha_apertura" label="Fecha de apertura" validate={required()}/>
         <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} multiline fullWidth/>
-        <SelectInput source="estado" label="Estado del seguimiento"
-          choices={[
-            {
-              id: "requiere_seguimiento",
-              name: "Requiere seguimiento"
-            },
-            {
-              id: "en_seguimiento",
-              name: "En seguimiento"
-            },
-            {
-              id: "concluido",
-              name: "Concluido"
-            }
-          ]} validate={required()} fullWidth/>
-
+        <SelectInput
+          source="estado"
+          label="Estado del seguimiento"
+          choices={estadosSeguimiento}
+          validate={required()}
+          fullWidth
+        />
         <FormDataConsumer>
           {({ formData }) =>
             formData.estado === "concluido" ? (

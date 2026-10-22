@@ -1,8 +1,29 @@
 import {List, Datagrid, TextField, DateField, NumberField, FunctionField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, ReferenceManyField, ReferenceInput, ReferenceField, BooleanField} from "react-admin";
 
+const infantesFilters = [
+    <TextInput key="matricula" source="matricula" label="Matrícula" alwaysOn />,
+    <TextInput key="nombre_completo" source="nombre_completo" label="Nombre completo" />,
+    <SelectInput key="sexo_patron" source="sexo_patron" label="Sexo"
+        choices={[
+            { id: "Femenino", name: "Femenino" },
+            { id: "Masculino", name: "Masculino" },
+        ]}
+        emptyText="Todos" 
+    />,
+    <ReferenceInput key="id_ebdi" source="id_ebdi" reference="ebdis" label="EBDI" >
+        <SelectInput optionText="nombre_ebdi" emptyText="Todas las EBDI" />
+    </ReferenceInput>,
+    <SelectInput key="activo" source="activo" label="Expediente" choices={[
+            { id: true, name: "Activo" },
+            { id: false, name: "Inactivo" },
+        ]}
+        emptyText="Todos" alwaysOn
+    />,
+];
+
 export function InfantesList() {
   return (
-    <List title="Infantes registrados">
+    <List title="Infantes registrados" filters={infantesFilters} filterDefaultValues={{activo: true}}>
       <Datagrid rowClick="show">
         <TextField source="id" label="ID" />
         <TextField source="matricula" label="Matrícula" />
@@ -31,7 +52,8 @@ export function InfantesCreate() {
         <TextInput source="nombre" label="Nombre(s)" validate={required()}/>
         <TextInput source="apellido_paterno" label="Apellido paterno"/>
         <TextInput source="apellido_materno" label="Apellido materno"/>
-        <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={required()} />
+        {/*Valida fecha de ingreso*/}
+        <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
         <SelectInput source="sexo_patron" label="Sexo"
           choices={[
             { id: "Femenino", name: "Femenino" },
@@ -39,14 +61,36 @@ export function InfantesCreate() {
           ]}
           validate={required()}
         />
-        <TextInput source="curp" label="CURP"/>
-        <ReferenceInput source="id_ebdi" reference="ebdis" label="EBDI">
-          <SelectInput optionText="nombre_ebdi" validate={required()} />
+        <TextInput
+          source="curp"
+          label="CURP"
+          helperText="Clave Única de Registro de Población. 18 caracteres, ej. LOMF240310MDFPRR09"
+          fullWidth
+        />
+        <ReferenceInput
+          source="id_ebdi"
+          reference="ebdis"
+        >
+          <SelectInput
+            label="EBDI"
+            optionText="nombre_ebdi"
+            helperText="Estancia para el Bienestar y Desarrollo Infantil."
+            validate={required()}
+            fullWidth
+          />
         </ReferenceInput>
-        <DateInput source="fecha_ingreso" label="Fecha de ingreso" />
+
+        {/*Valida fecha de ingreso*/}
+        <DateInput source="fecha_ingreso" label="Fecha de ingreso" validate={validarFechaIngreso}/>
         <SelectInput source="activo" label="Expediente" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} />
+
         {/* <SelectInput source="seguimientoActivo" label="Seguimiento de crecimiento" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} /> */}
-        <TextInput source="restricciones_nutricionales" label="Restricciones alimentarias" fullWidth />
+        <TextInput
+          source="restricciones_nutricionales"
+          label="Restricciones alimentarias"
+          helperText="Ej. alergia a la leche. Déjalo vacío si no tiene."
+          fullWidth
+        />
         <ReferenceInput source="id_tutor" reference="tutores" label="Padre, madre o tutor">
           <SelectInput optionText="nombre_tutor" validate={required()}/>
         </ReferenceInput>
@@ -95,16 +139,38 @@ export function InfantesShow() {
   );
 }
 
-const validarFechaIngreso = (value: string, allValues: any) => {
-    if (!value || !allValues.fecha_nacimiento) {
-        return undefined;
-    }
+// La fecha de nacimiento no puede ser posterior al día actual.
+const validarFechaNacimiento = (value: string) => {
+  if (!value) return undefined;
 
-    if (value < allValues.fecha_nacimiento) {
-        return "La fecha de ingreso no puede ser anterior a la fecha de nacimiento";
-    }
+  const hoy = new Date();
+  const fechaActual = [
+    hoy.getFullYear(),
+    String(hoy.getMonth() + 1).padStart(2, "0"),
+    String(hoy.getDate()).padStart(2, "0"),
+  ].join("-");
 
+  if (value > fechaActual) {
+    return "La fecha de nacimiento no puede ser futura";
+  }
+
+  return undefined;
+};
+
+// El infante no puede ingresar antes de haber nacido.
+const validarFechaIngreso = (
+  value: string,
+  allValues: { fecha_nacimiento?: string }
+) => {
+  if (!value || !allValues.fecha_nacimiento) {
     return undefined;
+  }
+
+  if (value < allValues.fecha_nacimiento) {
+    return "La fecha de ingreso no puede ser anterior a la fecha de nacimiento";
+  }
+
+  return undefined;
 };
 
 export function InfantesEdit() {
@@ -115,7 +181,7 @@ export function InfantesEdit() {
         <TextInput source="nombre" label="Nombre(s)" validate={required()}/>
         <TextInput source="apellido_paterno" label="Apellido paterno"/>
         <TextInput source="apellido_materno" label="Apellido materno"/>
-        <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={required()} />
+        <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
         <SelectInput source="sexo_patron" label="Sexo"
           choices={[
             { id: "Femenino", name: "Femenino" },
@@ -123,8 +189,17 @@ export function InfantesEdit() {
           ]}
           validate={required()}
         />
-        <ReferenceInput source="id_ebdi" reference="ebdis" label="EBDI">
-          <SelectInput optionText="nombre_ebdi" validate={required()} />
+        <ReferenceInput
+          source="id_ebdi"
+          reference="ebdis"
+        >
+          <SelectInput
+            label="EBDI"
+            optionText="nombre_ebdi"
+            helperText="Estancia para el Bienestar y Desarrollo Infantil."
+            validate={required()}
+            fullWidth
+          />
         </ReferenceInput>
         <DateInput source="fecha_ingreso" label="Fecha de ingreso" validate={[required(), validarFechaIngreso]}/>
         <SelectInput source="activo" label="Expediente" choices={[{ id: true, name: "Activo" },{ id: false, name: "Inactivo" },]}
@@ -133,7 +208,12 @@ export function InfantesEdit() {
             validate={required()}
         />
         {/* <SelectInput source="seguimientoActivo" label="Seguimiento de crecimiento" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} /> */}
-        <TextInput source="restricciones_nutricionales" label="Restricciones alimentarias" fullWidth />
+        <TextInput
+          source="restricciones_nutricionales"
+          label="Restricciones alimentarias"
+          helperText="Ej. alergia a la leche. Déjalo vacío si no tiene."
+          fullWidth
+        />
         <ReferenceInput source="id_tutor" reference="tutores" label="Padre, madre o tutor">
           <SelectInput optionText="nombre_tutor" validate={required()} fullWidth/>
         </ReferenceInput>
