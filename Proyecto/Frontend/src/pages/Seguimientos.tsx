@@ -1,4 +1,4 @@
-import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer} from "react-admin";
+import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer, SelectField} from "react-admin";
 
 // Opciones de estado utilizadas en los formularios.
 const estadosSeguimiento = [
@@ -12,7 +12,7 @@ const seguimientosFilters = [
         <SelectInput optionText="nombre_completo" emptyText="Todos los infantes"/>
     </ReferenceInput>,
     <DateInput key="fecha_apertura" source="fecha_apertura" label="Fecha de apertura" />,
-    <TextInput key="motivo" source="motivo"label="Motivo" />,
+    <TextInput key="motivo" source="motivo" label="Motivo" />,
     <SelectInput key="estado" source="estado" label="Estado" choices={estadosSeguimiento} emptyText="Todos los estados" alwaysOn/>,
 ];
 
@@ -26,7 +26,7 @@ export function SeguimientosList() {
         </ReferenceField>
         <DateField source="fecha_apertura" label="Fecha de apertura" />
         <TextField source="motivo" label="Motivo" />
-        <TextField source="estado" label="Estado" />
+        <SelectField source="estado" label="Estado" choices={estadosSeguimiento} />
         <ShowButton label="Ver caso" />
         <EditButton label="Editar" />
       </Datagrid>
@@ -77,7 +77,7 @@ export function SeguimientosShow() {
         </ReferenceField>
         <DateField source="fecha_apertura" label="Fecha de apertura" />
         <TextField source="motivo" label="Motivo" />
-        <TextField source="estado" label="Estado" />
+        <SelectField source="estado" label="Estado" choices={estadosSeguimiento} />
         <DateField source="fecha_cierre" label="Fecha de cierre" />
       </SimpleShowLayout>
     </Show>

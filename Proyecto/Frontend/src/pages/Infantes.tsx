@@ -1,15 +1,21 @@
-import {List, Datagrid, TextField, DateField, NumberField, FunctionField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, ReferenceManyField, ReferenceInput, ReferenceField, BooleanField} from "react-admin";
+import {List, Datagrid, TextField, DateField, NumberField, FunctionField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, ReferenceManyField, ReferenceInput, ReferenceField, BooleanField, SelectField} from "react-admin";
+
+const opcionesSexo = [
+  { id: "femenino", name: "Femenino" },
+  { id: "masculino", name: "Masculino" },
+  { id: "no_especificado", name: "No especificado" },
+];
+
+const estadosSeguimiento = [
+  { id: "requiere_seguimiento", name: "Requiere seguimiento" },
+  { id: "en_seguimiento", name: "En seguimiento" },
+  { id: "concluido", name: "Seguimiento concluido" },
+];
 
 const infantesFilters = [
     <TextInput key="matricula" source="matricula" label="Matrícula" alwaysOn />,
     <TextInput key="nombre_completo" source="nombre_completo" label="Nombre completo" />,
-    <SelectInput key="sexo_patron" source="sexo_patron" label="Sexo"
-        choices={[
-            { id: "Femenino", name: "Femenino" },
-            { id: "Masculino", name: "Masculino" },
-        ]}
-        emptyText="Todos" 
-    />,
+    <SelectInput key="sexo_patron" source="sexo_patron" label="Sexo" choices={opcionesSexo} emptyText="Todos" />,
     <ReferenceInput key="id_ebdi" source="id_ebdi" reference="ebdis" label="EBDI" >
         <SelectInput optionText="nombre_ebdi" emptyText="Todas las EBDI" />
     </ReferenceInput>,
@@ -29,14 +35,14 @@ export function InfantesList() {
         <TextField source="matricula" label="Matrícula" />
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
-        <TextField source="sexo_patron" label="Sexo" />
+        <SelectField source="sexo_patron" label="Sexo" choices={opcionesSexo} />
         <ReferenceField source="id_ebdi" reference="ebdis" label="EBDI">
           <TextField source="nombre_ebdi"/>
         </ReferenceField>
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
-        <FunctionField label="Última medición" render={(record) => record.fecha_medicion || "Sin registro"} />
+        <DateField source="fecha_medicion" label="Última medición" emptyText="Sin registro" />
         {/* <FunctionField label="Días transcurridos" render={(record) => record.diasDesdeUltimaMedicion ?? "__"} /> */}
-        <FunctionField label="Estado de seguimiento" render={(record) => record.estado} />
+        <SelectField source="estado" label="Estado de seguimiento" choices={estadosSeguimiento} emptyText="Sin seguimiento" />
         <EditButton label="Editar" />
         <ShowButton label="Ver ficha" />
       </Datagrid>
@@ -54,13 +60,7 @@ export function InfantesCreate() {
         <TextInput source="apellido_materno" label="Apellido materno"/>
         {/*Valida fecha de ingreso*/}
         <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
-        <SelectInput source="sexo_patron" label="Sexo"
-          choices={[
-            { id: "Femenino", name: "Femenino" },
-            { id: "Masculino", name: "Masculino" },
-          ]}
-          validate={required()}
-        />
+        <SelectInput source="sexo_patron" label="Sexo" choices={opcionesSexo} validate={required()} />
         <TextInput
           source="curp"
           label="CURP"
@@ -115,7 +115,7 @@ export function InfantesShow() {
         <TextField source="matricula" label="Matrícula" />
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
-        <TextField source="sexo_patron" label="Sexo" />
+        <SelectField source="sexo_patron" label="Sexo" choices={opcionesSexo} />
         <ReferenceField source="id_ebdi" reference="ebdis" label="EBDI">
           <TextField source="nombre_ebdi"/>
         </ReferenceField>
@@ -182,13 +182,7 @@ export function InfantesEdit() {
         <TextInput source="apellido_paterno" label="Apellido paterno"/>
         <TextInput source="apellido_materno" label="Apellido materno"/>
         <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
-        <SelectInput source="sexo_patron" label="Sexo"
-          choices={[
-            { id: "Femenino", name: "Femenino" },
-            { id: "Masculino", name: "Masculino" },
-          ]}
-          validate={required()}
-        />
+        <SelectInput source="sexo_patron" label="Sexo" choices={opcionesSexo} validate={required()} />
         <ReferenceInput
           source="id_ebdi"
           reference="ebdis"
