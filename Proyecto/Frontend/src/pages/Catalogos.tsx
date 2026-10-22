@@ -44,16 +44,16 @@ export function EstadosList() {
 export function EstadosCreate() {
   return <Create title="Registrar estado"><SimpleForm>
     <TextInput source="nombre_estado" label="Nombre del estado" validate={required()} />
-    <ReferenceInput source="id_region" reference="regiones" label="Región">
-      <SelectInput optionText="nombre_region" validate={required()} />
+    <ReferenceInput source="id_region" reference="regiones">
+      <SelectInput label="Región" optionText="nombre_region" validate={required()} />
     </ReferenceInput>
   </SimpleForm></Create>;
 }
 export function EstadosEdit() {
   return <Edit title="Editar estado"><SimpleForm>
     <TextInput source="nombre_estado" label="Nombre del estado" validate={required()} />
-    <ReferenceInput source="id_region" reference="regiones" label="Región">
-      <SelectInput optionText="nombre_region" validate={required()} />
+    <ReferenceInput source="id_region" reference="regiones">
+      <SelectInput label="Región" optionText="nombre_region" validate={required()} />
     </ReferenceInput>
   </SimpleForm></Edit>;
 }
@@ -80,8 +80,8 @@ export function EBDIsCreate() {
   return <Create title="Registrar EBDI"><SimpleForm>
     <TextInput source="clave" label="Clave" validate={required()} />
     <TextInput source="nombre_ebdi" label="Nombre de EBDI" validate={required()} fullWidth />
-    <ReferenceInput source="id_estado" reference="estados" label="Estado">
-      <SelectInput optionText="nombre" validate={required()} />
+    <ReferenceInput source="id_estado" reference="estados">
+      <SelectInput label="Estado" optionText="nombre" validate={required()} />
     </ReferenceInput>
     <TextInput source="estado" label="Municipio" />
     <SelectInput source="activo" label="Estatus" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} />
@@ -91,8 +91,8 @@ export function EBDIsEdit() {
   return <Edit title="Editar EBDI"><SimpleForm>
     <TextInput source="clave" label="Clave" validate={required()} />
     <TextInput source="nombre_ebdi" label="Nombre de EBDI" validate={required()} fullWidth />
-    <ReferenceInput source="id_estado" reference="estados" label="Estado">
-      <SelectInput optionText="nombre" validate={required()} />
+    <ReferenceInput source="id_estado" reference="estados">
+      <SelectInput label="Estado" optionText="nombre" validate={required()} />
     </ReferenceInput>
     <TextInput source="nombre_estado" label="Municipio" />
     <SelectInput source="activo" label="Estatus" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} />
