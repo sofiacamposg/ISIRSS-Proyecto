@@ -1,5 +1,5 @@
 import type { AuthProvider } from "react-admin";
-const API_URL = "https://localhost:3000";
+const API_URL = import.meta.env.VITE_BACKEND;
 const clavesSesion = [
     "username",
     "userRole",
@@ -12,7 +12,7 @@ const clavesSesion = [
     "token",
 ];
 function limpiarSesion() {
-    clavesSesion.forEach((key) => localStorage.removeItem(key));
+    clavesSesion.forEach((key) => sessionStorage.removeItem(key));
 }
 export const authProvider: AuthProvider = {
     async login({ username, password }) {
@@ -53,12 +53,12 @@ export const authProvider: AuthProvider = {
         }
         // Evita conservar datos de una sesión anterior.
         limpiarSesion();
-        localStorage.setItem("username", usuario.correo);
-        localStorage.setItem("userRole", usuario.rol);
-        localStorage.setItem("userFullName", usuario.nombre);
-        localStorage.setItem("userId", String(usuario.id_usuario));
-        localStorage.setItem("userCorreo", usuario.correo);
-        localStorage.setItem("token", data.token);
+        sessionStorage.setItem("username", usuario.correo);
+        sessionStorage.setItem("userRole", usuario.rol);
+        sessionStorage.setItem("userFullName", usuario.nombre);
+        sessionStorage.setItem("userId", String(usuario.id_usuario));
+        sessionStorage.setItem("userCorreo", usuario.correo);
+        sessionStorage.setItem("token", data.token);
     },
     async logout() {
         limpiarSesion();
@@ -73,17 +73,17 @@ export const authProvider: AuthProvider = {
     },
     async checkAuth() {
         if (
-            !localStorage.getItem("username") ||
-            !localStorage.getItem("userRole")
+            !sessionStorage.getItem("username") ||
+            !sessionStorage.getItem("userRole")
         ) {
             throw new Error("Debes iniciar sesión para acceder a la plataforma.");
         }
     },
     async getPermissions() {
-        return localStorage.getItem("userRole") ?? "sin_perfil";
+        return sessionStorage.getItem("userRole") ?? "sin_perfil";
     },
     async canAccess({ resource, action }) {
-        const role = localStorage.getItem("userRole");
+        const role = sessionStorage.getItem("userRole");
         if (!role || !resource) {
             return false;
         }
@@ -100,7 +100,6 @@ export const authProvider: AuthProvider = {
                 crecimiento: ["list", "show"],
                 alertas: ["list", "show"],
                 reportes: ["list", "show", "export"],
-                regiones: ["list", "show"],
                 estados: ["list", "show"],
                 ebdis: ["list", "show"],
             },
@@ -109,6 +108,7 @@ export const authProvider: AuthProvider = {
                 infantes: ["list", "show", "create", "edit"],
                 mediciones: ["list", "show", "create", "edit"],
                 seguimientos: ["list", "show", "create", "edit"],
+                acciones_seguimiento: ["list", "show", "create", "edit"],
                 crecimiento: ["list", "show"],
                 alertas: ["list", "show"],
                 reportes: ["list", "show", "export"],
@@ -116,16 +116,18 @@ export const authProvider: AuthProvider = {
             tutor: {
                 infantes: ["list", "show"],
                 mediciones: ["list", "show"],
+                condiciones: ["list", "show"],
                 seguimientos: ["list", "show"],
+                acciones_seguimiento: ["list", "show"],
                 crecimiento: ["list", "show"],
             },
         };
         return permisos[role]?.[resource]?.includes(action) ?? false;
     },
     async getIdentity() {
-        const id = localStorage.getItem("userId");
-        const correo = localStorage.getItem("userCorreo");
-        const fullName = localStorage.getItem("userFullName");
+        const id = sessionStorage.getItem("userId");
+        const correo = sessionStorage.getItem("userCorreo");
+        const fullName = sessionStorage.getItem("userFullName");
         if (!id || !correo) {
             throw new Error("No hay una sesión activa.");
         }
