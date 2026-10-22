@@ -1,5 +1,6 @@
-//Definition of modules
-//Imports the required modules
+//FUNCIONES DEL BACKEND Y API
+
+//Definición de módulos
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
@@ -7,15 +8,16 @@ require("dotenv").config();
 const fs=require("fs");
 const https=require("https");
 
-//Creates the Express server
+//Crea el servidor de express
 const app = express();
-const PORT = process.env.PORT || 3000; //Port the server will listen on
+const PORT = process.env.PORT || 3000; //Puerto en el que va a escuchar
 
-//Enables CORS and JSON request handling
 app.use(cors());
 
-//app.use(express.json());
+//Para formato de datos
 const bodyParser=require("body-parser")
+
+//Para hasheo y autenticación
 const argon2=require("argon2");
 const jwt=require("jsonwebtoken");
 app.use(bodyParser.json());
@@ -26,7 +28,7 @@ const ARGON2_OPTIONS = {
     parallelism: 1     // 1 hilo
 };
 
-//Creates a MySQL connection pool
+//Pool para la conexión con mysql
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -42,10 +44,12 @@ if (!JWT_SECRET) {
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
+//FUNCIÓNES DE LOGS PARA BITÁCORA EN LA DB
 
 async function registrarBitacora(req, {accion, entidad, id_registro = null, valor_anterior = null, valor_nuevo = null, motivo = null}) {
     try {
         //Obtener el usuario autenticado, si existe.
+        //Obtiene el ID del usuario de forma segura. Si no hay sesión o falta el ID, asigna null.
         const idUsuario = req?.usuario?.id_usuario ?? null;
 
         await pool.execute(
@@ -75,17 +79,19 @@ async function registrarBitacora(req, {accion, entidad, id_registro = null, valo
 
         return true;
     } catch (error) {
-        // Un error en la bitácora no debe ocultar
-        // el resultado de la operación original.
+        //Un error en la bitácora no debe ocultar el resultado de la operación original.
         console.error("Error al registrar en bitácora:", error);
         return false;
     }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO DE TUTORES
 
+//Cada endpoint revisa que el usuario esté Autenticado, que la acción esté Autorizada y genera Logs de la acción.
 app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
+        //Para ordenamiento de datos y paginación que solicite Rect-Admin
         let sortBy = req.query._sort || "id_tutor";
         const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
         const inicio = Math.max(0, Number(req.query._start) || 0);
@@ -145,14 +151,18 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
              LIMIT ? OFFSET ?`,
             [...parametros, limite, inicio]
         );
+
+        //Regresa cosas de paginación para React-Admin
         const [total] = await pool.execute( `SELECT COUNT(*) AS total FROM tutores ${where}`, parametros);
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
 
+        //Logs de la acción concretada
         await registrarBitacora(req, {accion: "READ_EXITOSO", entidad: "tutores", motivo: "Consulta de lista de tutores"});
 
         res.json(data);
     } catch (error) {
+        //También se genera el log si falló la acción
         await registrarBitacora(req, {accion: "READ_FALLIDO", entidad: "tutores",motivo: error.message});
 
         console.error("Error al consultar tutores:", error);
