@@ -1905,15 +1905,10 @@ app.put("/mediciones/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListSeguimientos(collection, req, res) {
-
-    //Obtener seguimientos específicos para ReferenceField / getMany
+    // Obtener seguimientos específicos para ReferenceField / getMany
     if (req.query.id) {
-        const ids = Array.isArray(req.query.id)
-            ? req.query.id
-            : [req.query.id];
-
+        const ids = Array.isArray(req.query.id) ? req.query.id : [req.query.id];
         const placeholders = ids.map(() => "?").join(",");
-
         const [data] = await pool.execute(
             `SELECT
                 s.id_seguimiento AS id,
@@ -1928,34 +1923,46 @@ async function getListSeguimientos(collection, req, res) {
              WHERE s.id_seguimiento IN (${placeholders})`,
             ids
         );
-
         return res.json(data);
     }
-
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-
-    let inicio = Number(req.query._start) || 0;
-    let fin = Number(req.query._end) || 10;
-    let limite = fin - inicio;
-
+    // Paginación
+    const inicio = Math.max(0, Number(req.query._start) || 0);
+    const finSolicitado = Number(req.query._end);
+    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
+    const limite = fin - inicio;
+    // Ordenamiento seguro
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    // Obtener filtros enviados por React-Admin
     let filtro = {};
-
     if (req.query.filter) {
-        filtro = typeof req.query.filter === "string"
-            ? JSON.parse(req.query.filter)
-            : req.query.filter;
+        filtro = typeof req.query.filter === "string" ? JSON.parse(req.query.filter) : req.query.filter;
     }
-
-    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante);
-
-    let where = "";
-    let parametros = [];
-
-    if (Number.isInteger(idInfante) && idInfante > 0) {
-        where = "WHERE s.id_infante = ?";
-        parametros.push(idInfante);
+    // Compatibilidad con diferentes formas de enviar filtros
+    const idInfante = filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante;
+    const fechaApertura = filtro.fecha_apertura ?? req.query["filter[fecha_apertura]"] ?? req.query.fecha_apertura;
+    const motivo = filtro.motivo ?? req.query["filter[motivo]"] ?? req.query.motivo;
+    const estado = filtro.estado ?? req.query["filter[estado]"] ?? req.query.estado;
+    // Construcción de condiciones SQL
+    const condiciones = [];
+    const parametros = [];
+    if (idInfante !== undefined && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
+        condiciones.push("s.id_infante = ?");
+        parametros.push(Number(idInfante));
     }
-
+    if (fechaApertura) {
+        condiciones.push("DATE(s.fecha_apertura) = ?");
+        parametros.push(fechaApertura);
+    }
+    if (motivo && String(motivo).trim() !== "") {
+        condiciones.push("s.motivo LIKE ?");
+        parametros.push(`%${String(motivo).trim()}%`);
+    }
+    if (estado && String(estado).trim() !== "") {
+        condiciones.push("s.estado = ?");
+        parametros.push(String(estado).trim());
+    }
+    const where = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
+    // Consultar seguimientos con filtros y paginación
     const [data] = await pool.execute(
         `SELECT
             s.id_seguimiento AS id,
@@ -1972,14 +1979,8 @@ async function getListSeguimientos(collection, req, res) {
          LIMIT ? OFFSET ?`,
         [...parametros, limite, inicio]
     );
-
-    const [total] = await pool.execute(
-        `SELECT COUNT(*) AS total
-         FROM seguimientos s
-         ${where}`,
-        parametros
-    );
-
+    // Contar solamente los registros que cumplen los filtros
+    const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM seguimientos s ${where}`, parametros);
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
     res.json(data);
