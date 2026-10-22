@@ -56,13 +56,28 @@ const Dashboard = () => {
   const totalSeguimientos = useTotal("seguimientos", puedeVerPadron);
   const totalAlertas = useTotal("alertas", puedeVerPadron);
 
+  // descripción de la página según el rol
+  let descripcion = "Bienvenida/o a la plataforma.";
+  if (esAdmin) {
+    descripcion = "Resumen general del padrón infantil. Revisa las alertas, registra mediciones y consulta los reportes.";
+  }
+  if (esEstancia) {
+    descripcion = "Resumen del padrón infantil. Registra las mediciones pendientes y revisa el estado de los infantes.";
+  }
+  if (esCoordinador) {
+    descripcion = "Resumen del padrón infantil. Consulta las mediciones, los seguimientos y los reportes de la región.";
+  }
+  if (esTutor) {
+    descripcion = "Consulta la información y el crecimiento de tus infantes.";
+  }
+
   return (
     <Box sx={{ pb: 4 }}>
       <Title title="Inicio" />
 
       {/* descripción corta de la página */}
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Resumen del padrón infantil. Revisa las alertas y registra las mediciones pendientes.
+        {descripcion}
       </Typography>
 
       {/* resumen (admin, EBDI y coordinador) */}
