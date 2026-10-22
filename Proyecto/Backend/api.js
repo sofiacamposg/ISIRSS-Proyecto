@@ -171,14 +171,15 @@ async function createData(collection, req, res) {
 
 
 
+
 app.get("/tutores", async (req, res) => {
     try {
-        let sortBy;
-        let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+        let sortBy = req.query._sort || "id_tutor";
+        const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
-        let inicio = Number(req.query._start) || 0;
-        let fin = Number(req.query._end) || 10;
-        let limite = fin - inicio;
+        const inicio = Math.max(0, Number(req.query._start) || 0);
+        const fin = Number(req.query._end) || inicio + 10;
+        const limite = Math.max(0, fin - inicio);
 
         const columnas = [
             "id",
@@ -189,31 +190,53 @@ app.get("/tutores", async (req, res) => {
             "id_usuario"
         ];
 
+        // Evitar que el nombre de la columna de ordenamiento
+        // provenga de un valor no permitido.
         if (!columnas.includes(sortBy)) {
             sortBy = "id_tutor";
         }
-
+        // Leer los filtros enviados por React-Admin.
+        let filtro = {};
+        if (req.query.filter) {
+            filtro = typeof req.query.filter === "string"
+                ? JSON.parse(req.query.filter)
+                : req.query.filter;
+        }
+        const nombre = filtro.nombre_tutor ?? req.query["filter[nombre_tutor]"] ?? req.query.nombre_tutor;
+        const telefono = filtro.telefono ?? req.query["filter[telefono]"] ?? req.query.telefono;
+        const correo = filtro.correo ?? req.query["filter[correo]"] ?? req.query.correo;
+        const condiciones = [];
+        const parametros = [];
+        if (nombre && String(nombre).trim() !== "") {
+            condiciones.push("nombre LIKE ?");
+            parametros.push(`%${String(nombre).trim()}%`);
+        }
+        if (telefono && String(telefono).trim() !== "") {
+            condiciones.push("telefono LIKE ?");
+            parametros.push(`%${String(telefono).trim()}%`);
+        }
+        if (correo && String(correo).trim() !== "") {
+            condiciones.push("correo LIKE ?");
+            parametros.push(`%${String(correo).trim()}%`);
+        }
+        const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
         const [data] = await pool.execute(
             `SELECT
                 id_tutor AS id,
                 id_tutor,
-                nombre as nombre_tutor,
+                nombre AS nombre_tutor,
                 telefono,
                 correo,
                 id_usuario
              FROM tutores
-             ORDER BY \`${sortBy}\` ${sortOrder}
+             ${where}
+             ORDER BY \`${sortBy === "nombre_tutor" ? "nombre" : sortBy}\` ${sortOrder}
              LIMIT ? OFFSET ?`,
-            [limite, inicio]
+            [...parametros, limite, inicio]
         );
-
-        const [total] = await pool.execute(
-            "SELECT COUNT(*) AS total FROM tutores"
-        );
-
+        const [total] = await pool.execute( `SELECT COUNT(*) AS total FROM tutores ${where}`, parametros);
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
-
         res.json(data);
     } catch (error) {
         console.error("Error al consultar tutores:", error);
@@ -222,7 +245,6 @@ app.get("/tutores", async (req, res) => {
         });
     }
 });
-
 
 app.post("/tutores", async (req, res) => {
     try {
