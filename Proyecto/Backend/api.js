@@ -4,11 +4,12 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 require("dotenv").config();
+const fs=require("fs");
+const https=require("https");
 
 //Creates the Express server
 const app = express();
-const PORT = 3000; //Port the server will listen on
-
+const PORT = process.env.PORT || 3000; //Port the server will listen on
 
 //Enables CORS and JSON request handling
 app.use(cors());
@@ -27,10 +28,10 @@ const ARGON2_OPTIONS = {
 
 //Creates a MySQL connection pool
 const pool = mysql.createPool({
-    host: '127.0.0.1',
-    user: 'root',
-    password: '213111',
-    database: 'issste_padron'
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 }).promise();
 
 //clave para firmar los tokens
@@ -988,10 +989,8 @@ app.get("/regiones", async (req, res) => {
         // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
-            console.log("estoy entrando a donde no deberia1");
             await getManyReference("regiones", req, res);
         } else if ("id_region" in req.query) {
-            console.log("estoy entrando a donde no deberia2");
             await getMany("regiones", req, res);
         } else {
             await getListRegiones("regiones", req, res);
@@ -2112,7 +2111,6 @@ app.post("/seguimientos", async (req, res) => {
     }
 });
 
-
 async function getOneSeguimiento(collection, id, req, res) {
     const [data] = await pool.execute(
         `SELECT
@@ -2144,7 +2142,6 @@ app.get("/seguimientos/:id", async (req, res) => {
         throw error;
     }
 });
-
 
 async function updateSeguimiento(req, res) {
     const idSeguimiento = Number(req.params.id);
@@ -3036,48 +3033,7 @@ app.put("/acciones_seguimiento/:id", async (req, res) => {
     }
 });
 
-
-
-
-
-
-
-
-
-
-
-app.get("/Productos/:id", async (req, res) => {
-    try {
-        await getOne("productos", Number(req.params.id), req, res);
-    } catch (error) {
-        res.sendStatus(500);
-    }
-});
-
-
-app.put("/Productos/:id", async (req, res) => {
-    try {
-        await updateData("productos", req, res);
-    } catch (error) {
-        res.sendStatus(500);
-    }
-});
-
-app.delete("/Productos/:id", async (req, res) => {
-    try {
-        await deleteData("productos", Number(req.params.id), req, res);
-    } catch (error) {
-        res.sendStatus(500);
-    }
-});
-
-app.post("/Productos/", async (req, res) => {
-    try {
-        await createData("productos", req, res);
-    } catch (error) {
-        res.sendStatus(500);
-    }
-});
+//------------------------------------------------------------------------------------------------------------------------------------
 
 app.post("/registrarse", async (req, res) => {
     try {
@@ -3299,11 +3255,6 @@ setInterval(async () => {
         console.error("Error en la revisión automática:", error);
     }
 }, UN_DIA);
-
-app.listen(PORT, async () => {
-    console.log("Backend corriendo en puerto 3000");
-});
-
 
 app.get("/alertas", async (req, res) => {
     try {
@@ -3763,4 +3714,15 @@ app.put("/usuarios/:id", async (req, res) => {
             mensaje: "Error interno al actualizar el usuario."
         });
     }
+});
+
+//-------------------------------------------------------------------------------------------------------------------------------------
+
+const options = {
+    key: fs.readFileSync("backend.key"),
+    cert: fs.readFileSync("backend.crt")
+};
+
+https.createServer(options, app).listen(PORT, () => {
+    console.log(`Backend corriendo con HTTPS en puerto ${PORT}`);
 });
