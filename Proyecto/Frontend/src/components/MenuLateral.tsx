@@ -112,8 +112,8 @@ export function MenuLateral() {
                 {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="crecimiento" aria-current={paginaActual("/crecimiento")} />}
 
                 {(esAdmin || esEstancia || esCoordinador) && <Categoria>Gestión</Categoria>}
-                {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="alertas" aria-current={paginaActual("/alertas")} />}
-                {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="reportes" aria-current={paginaActual("/reportes")} />}
+                {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="alertas" aria-current={paginaActual("/alertas")} />}
+                {(esAdmin || esCoordinador) && <Menu.ResourceItem name="reportes" aria-current={paginaActual("/reportes")} />}
                 {(esAdmin || esEstancia || esCoordinador) && <Menu.ResourceItem name="tutores" aria-current={paginaActual("/tutores")} />}
                 {(esAdmin) && <Menu.ResourceItem name="usuarios" aria-current={paginaActual("/usuarios")} />}
 

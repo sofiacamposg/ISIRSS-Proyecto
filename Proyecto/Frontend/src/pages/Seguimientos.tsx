@@ -2,14 +2,23 @@ import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, Se
 
 // Opciones de estado utilizadas en los formularios.
 const estadosSeguimiento = [
-  { id: "requiere_seguimiento", name: "Requiere seguimiento" },
-  { id: "en_seguimiento", name: "En seguimiento" },
-  { id: "concluido", name: "Concluido" },
+    { id: "requiere_seguimiento", name: "Requiere seguimiento" },
+    { id: "en_seguimiento", name: "En seguimiento" },
+    { id: "concluido", name: "Seguimiento concluido" },
+];
+
+const seguimientosFilters = [
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" >
+        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes"/>
+    </ReferenceInput>,
+    <DateInput key="fecha_apertura" source="fecha_apertura" label="Fecha de apertura" />,
+    <TextInput key="motivo" source="motivo"label="Motivo" />,
+    <SelectInput key="estado" source="estado" label="Estado" choices={estadosSeguimiento} emptyText="Todos los estados" alwaysOn/>,
 ];
 
 export function SeguimientosList() {
   return (
-    <List title="Seguimiento nutricional">
+    <List title="Seguimiento nutricional" filters={seguimientosFilters}>
       <Datagrid rowClick="show">
         <TextField source="id" label="ID" />
         <ReferenceField source="id_infante" reference="infantes" label="Infante">

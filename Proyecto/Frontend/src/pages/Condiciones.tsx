@@ -1,8 +1,16 @@
 import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
 
+const condicionesFilters = [
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" alwaysOn>
+        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes" />
+    </ReferenceInput>,
+    <DateInput key="fecha_registro" source="fecha_registro" label="Fecha de registro" alwaysOn/>,
+    <TextInput key="descripcion" source="descripcion" label="Descripción" />,
+];
+
 export function CondicionesList() {
     return (
-        <List title="Condiciones de salud">
+        <List title="Condiciones de salud" filters={condicionesFilters}>
             <Datagrid>
                 <TextField source="id_condicion" label="ID" />
                 <ReferenceField source="id_infante" reference="infantes" label="Infante">
