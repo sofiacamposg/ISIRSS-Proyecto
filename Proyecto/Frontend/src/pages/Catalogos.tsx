@@ -45,7 +45,7 @@ export function EstadosCreate() {
   return <Create title="Registrar estado"><SimpleForm>
     <TextInput source="nombre_estado" label="Nombre del estado" validate={required()} />
     <ReferenceInput source="id_region" reference="regiones" label="Región">
-      <SelectInput optionText="nombre" validate={required()} />
+      <SelectInput optionText="nombre_region" validate={required()} />
     </ReferenceInput>
   </SimpleForm></Create>;
 }
@@ -53,7 +53,7 @@ export function EstadosEdit() {
   return <Edit title="Editar estado"><SimpleForm>
     <TextInput source="nombre_estado" label="Nombre del estado" validate={required()} />
     <ReferenceInput source="id_region" reference="regiones" label="Región">
-      <SelectInput optionText="nombre" validate={required()} />
+      <SelectInput optionText="nombre_region" validate={required()} />
     </ReferenceInput>
   </SimpleForm></Edit>;
 }
@@ -71,10 +71,8 @@ export function EBDIsList() {
   return <List title="EBDI"><Datagrid rowClick="show">
     <TextField source="id" label="ID" /><TextField source="clave" label="Clave" />
     <TextField source="nombre_ebdi" label="Nombre de EBDI" />
-    <ReferenceField source="id_estado" reference="estados" label="Estado">
-      <TextField source="nombre_estado" />
-    </ReferenceField>
-    <TextField source="nombre_estado" label="Municipio" /><BooleanField source="activo" label="Activo" />
+    <TextField source="nombre_estado" label="Estado" />
+    <BooleanField source="activo" label="Activo" looseValue/>
     <EditButton label="Editar" /><ShowButton label="Ver" />
   </Datagrid></List>;
 }
