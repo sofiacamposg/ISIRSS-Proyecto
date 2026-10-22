@@ -1,5 +1,5 @@
 import type { AuthProvider } from "react-admin";
-const API_URL = "http://localhost:3000";
+const API_URL = "https://localhost:3000";
 const clavesSesion = [
     "username",
     "userRole",
