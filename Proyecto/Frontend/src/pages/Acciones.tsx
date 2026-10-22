@@ -40,9 +40,21 @@ export function AccionesCreate() {
                     )}
                 </FormDataConsumer>
                 <DateTimeInput source="fecha" label="Fecha y hora" validate={required()} />
-                <TextInput source="acciones_realizadas" label="Acciones realizadas" multiline fullWidth validate={required()} />
+                <TextInput
+                    source="acciones_realizadas"
+                    label="Acciones realizadas"
+                    helperText="Ej. orientación nutricional, cita con pediatría."
+                    multiline
+                    fullWidth
+                    validate={required()}
+                    />
                 <TextInput source="observaciones" label="Observaciones" multiline fullWidth />
-                <TextInput source="responsable_nombre" label="Nombre del responsable" validate={required()} />
+                <TextInput
+                    source="responsable_nombre"
+                    label="Nombre del responsable"
+                    helperText="Nombre de quien da el seguimiento."
+                    validate={required()}
+                    />
                 <NumberInput source="responsable_usuario" label="ID de usuario responsable (opcional)" min={1} />
             </SimpleForm>
         </Create>
@@ -90,9 +102,21 @@ export function AccionesEdit() {
                     )}
                 </FormDataConsumer>
                 <DateTimeInput source="fecha" label="Fecha y hora" validate={required()} />
-                <TextInput source="acciones_realizadas" label="Acciones realizadas" multiline fullWidth validate={required()} />
+                <TextInput
+                    source="acciones_realizadas"
+                    label="Acciones realizadas"
+                    helperText="Ej. orientación nutricional, cita con pediatría."
+                    multiline
+                    fullWidth
+                    validate={required()}
+                    />
                 <TextInput source="observaciones" label="Observaciones" multiline fullWidth />
-                <TextInput source="responsable_nombre" label="Nombre del responsable" validate={required()} />
+                <TextInput
+                    source="responsable_nombre"
+                    label="Nombre del responsable"
+                    helperText="Nombre de quien da el seguimiento."
+                    validate={required()}
+                    />
                 <NumberInput source="responsable_usuario" label="ID de usuario responsable (opcional)" min={1} />
             </SimpleForm>
         </Edit>
