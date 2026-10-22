@@ -118,7 +118,7 @@ export function MenuLateral() {
                 {(esAdmin) && <Menu.ResourceItem name="usuarios" aria-current={paginaActual("/usuarios")} />}
 
                 {(esAdmin || esCoordinador) && <Categoria>Catálogos</Categoria>}
-                {(esAdmin || esCoordinador) && <Menu.ResourceItem name="regiones" aria-current={paginaActual("/regiones")} />}
+                {(esAdmin) && <Menu.ResourceItem name="regiones" aria-current={paginaActual("/regiones")} />}
                 {(esAdmin || esCoordinador) && <Menu.ResourceItem name="estados" aria-current={paginaActual("/estados")} />}
                 {(esAdmin || esCoordinador) && <Menu.ResourceItem name="ebdis" aria-current={paginaActual("/ebdis")} />}
             </Menu>

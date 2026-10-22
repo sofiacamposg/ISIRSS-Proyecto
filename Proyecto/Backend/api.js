@@ -41,131 +41,8 @@ if (!JWT_SECRET) {
     throw new Error("Falta configurar la variable de entorno JWT_SECRET.");
 }
 
-//Funciones de referencia------------------------------------------------------------------------------------
-async function getMany(collection, req, res) {
-    let ids = req.query.id;
 
-    if (!Array.isArray(ids)) {
-        ids = ids === undefined ? [] : [ids];
-    }
-
-    ids = ids.map(Number);
-
-    if (ids.length === 0) {
-        return res.json([]);
-    }
-
-    let placeholders = ids.map(() => "?").join(",");
-
-    let [data] = await pool.execute(
-        `SELECT * FROM \`${collection}\`
-         WHERE id IN (${placeholders})`,
-        ids
-    );
-
-    res.json(data);
-}
-
-async function getManyReference(collection, req, res) {
-    let target = req.query.target;
-    let id = req.query.id;
-
-    const columnas = ["id", "nombre", "precio"]; // Ajustar a las columnas reales
-
-    if (!columnas.includes(target)) {
-        return res.status(400).json({ error: "Referencia inválida" });
-    }
-
-    let [data] = await pool.execute(
-        `SELECT * FROM \`${collection}\` WHERE \`${target}\` = ?`,
-        [id]
-    );
-
-    res.set("Access-Control-Expose-Headers", "X-Total-Count");
-    res.set("X-Total-Count", String(data.length));
-    res.json(data);
-}
-
-async function getOne(collection, id, req, res) {
-    let [data] = await pool.execute(
-        `SELECT * FROM \`${collection}\` WHERE id = ?`,
-        [id]
-    );
-
-    if (data.length === 0) {
-        return res.sendStatus(404);
-    }
-
-    res.json(data[0]);
-}
-
-async function updateData(collection, req, res) {
-    let valores = { ...req.body };
-    let id = Number(req.params.id);
-
-    delete valores.id;
-
-    let campos = Object.keys(valores);
-
-    if (campos.length === 0) {
-        return getOne(collection, id, req, res);
-    }
-
-    let asignaciones = campos
-        .map(campo => `\`${campo}\` = ?`)
-        .join(", ");
-
-    let parametros = campos.map(campo => valores[campo]);
-    parametros.push(id);
-
-    await pool.execute(
-        `UPDATE \`${collection}\`
-         SET ${asignaciones}
-         WHERE id = ?`,
-        parametros
-    );
-
-    await getOne(collection, id, req, res);
-}
-
-async function deleteData(collection, id, req, res) {
-    let [data] = await pool.execute(
-        `DELETE FROM \`${collection}\` WHERE id = ?`,
-        [id]
-    );
-
-    res.json({ id, affectedRows: data.affectedRows });
-}
-
-async function createData(collection, req, res) {
-    let valores = { ...req.body };
-
-    delete valores.id;
-
-    let campos = Object.keys(valores);
-
-    if (campos.length === 0) {
-        return res.status(400).json({ error: "No hay datos" });
-    }
-
-    let nombres = campos
-        .map(campo => `\`${campo}\``)
-        .join(", ");
-
-    let placeholders = campos.map(() => "?").join(", ");
-    let parametros = campos.map(campo => valores[campo]);
-
-    let [data] = await pool.execute(
-        `INSERT INTO \`${collection}\` (${nombres})
-         VALUES (${placeholders})`,
-        parametros
-    );
-
-    await getOne(collection, data.insertId, req, res);
-}
-
-
-app.get("/tutores", async (req, res) => {
+app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
         let sortBy = req.query._sort || "id_tutor";
         const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
@@ -238,7 +115,7 @@ app.get("/tutores", async (req, res) => {
     }
 });
 
-app.post("/tutores", async (req, res) => {
+app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         const { nombre, telefono, correo } = req.body;
 
@@ -300,7 +177,7 @@ async function getOneTutor(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/tutores/:id", async (req, res) => {
+app.get("/tutores/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
         await getOneTutor("tutores", Number(req.params.id), req, res);
     } catch (error) {
@@ -359,6 +236,7 @@ async function getListInfantes(collection, req, res) {
     const idEbdi = req.query.id_ebdi;
     const activo = req.query.activo;
     const estado = String(req.query.estado || "").trim();
+    const nombreEbdi = String(req.query.nombre_ebdi || "").trim();
     if (matricula) {
         condiciones.push("i.matricula LIKE ?");
         parametros.push(`%${matricula}%`);
@@ -385,6 +263,10 @@ async function getListInfantes(collection, req, res) {
     if (idEbdi !== undefined && idEbdi !== "" && Number.isInteger(Number(idEbdi)) && Number(idEbdi) > 0) {
         condiciones.push("i.id_ebdi = ?");
         parametros.push(Number(idEbdi));
+    }
+    if (nombreEbdi) {
+        condiciones.push("e.nombre_ebdi LIKE ?");
+        parametros.push(`%${nombreEbdi}%`);
     }
     if (activo !== undefined && activo !== "") {
         let valorActivo;
@@ -431,6 +313,7 @@ async function getListInfantes(collection, req, res) {
             i.fecha_nacimiento,
             i.sexo_patron,
             i.id_ebdi,
+            e.nombre AS nombre_ebdi,
             i.fecha_ingreso,
             i.activo,
             i.restricciones_nutricionales,
@@ -457,6 +340,8 @@ async function getListInfantes(collection, req, res) {
                 LIMIT 1
             ) AS estado
         FROM infantes i
+        LEFT JOIN ebdi e
+        ON i.id_ebdi = e.id_ebdi
         LEFT JOIN mediciones_vigentes mv
             ON i.id_infante = mv.id_infante
             AND mv.id_medicion = (
@@ -479,11 +364,8 @@ async function getListInfantes(collection, req, res) {
     return res.json(data);
 }
 
-app.get("/infantes", async (req, res) => {
+app.get("/infantes", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        console.log("Token recibido:", token);
-        // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
             await getManyReference("infantes", req, res);
@@ -631,7 +513,7 @@ async function createInfante(req, res) {
     }
 }
 
-app.post("/infantes", async (req, res) => {
+app.post("/infantes", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await createInfante(req, res);
     } catch (error) {
@@ -667,6 +549,7 @@ async function getOneInfante(collection, id, req, res) {
             i.fecha_nacimiento,
             i.sexo_patron,
             i.id_ebdi,
+            e.nombre AS nombre_ebdi,
             i.fecha_ingreso,
             i.activo,
             i.restricciones_nutricionales,
@@ -685,6 +568,8 @@ async function getOneInfante(collection, id, req, res) {
             s.estado
 
         FROM infantes i
+        LEFT JOIN ebdi e
+            ON i.id_ebdi = e.id_ebdi
 
         LEFT JOIN mediciones_vigentes mv
             ON i.id_infante = mv.id_infante
@@ -716,7 +601,7 @@ async function getOneInfante(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/infantes/:id", async (req, res) => {
+app.get("/infantes/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         await getOneInfante("infantes", Number(req.params.id), req, res);
     } catch (error) {
@@ -985,7 +870,7 @@ async function updateInfante(req, res) {
     }
 }
 
-app.put("/infantes/:id", async (req, res) => {
+app.put("/infantes/:id", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await updateInfante(req, res);
     } catch (error) {
@@ -1059,10 +944,8 @@ async function getListRegiones(collection, req, res) {
     res.json(data);
 }
 
-app.get("/regiones", async (req, res) => {
+app.get("/regiones", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
             await getManyReference("regiones", req, res);
@@ -1095,7 +978,7 @@ async function getOneRegion(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/regiones/:id", async (req, res) => {
+app.get("/regiones/:id", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         await getOneRegion("regiones", Number(req.params.id), req, res);
     } catch (error) {
@@ -1138,10 +1021,8 @@ async function getListEstados(collection, req, res) {
     res.json(data);
 }
 
-app.get("/estados", async (req, res) => {
+app.get("/estados", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional"), async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
             await getManyReference("estados", req, res);
@@ -1175,7 +1056,7 @@ async function getOneEstado(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/estados/:id", async (req, res) => {
+app.get("/estados/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional"), async (req, res) => {
     try {
         await getOneEstado("estados", Number(req.params.id), req, res);
     } catch (error) {
@@ -1256,10 +1137,8 @@ async function getListEbdi(collection, req, res) {
     res.json(data);
 }
 
-app.get("/ebdis", async (req, res) => {
+app.get("/ebdis", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional"), async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
             await getManyReference("ebdi", req, res);
@@ -1301,7 +1180,7 @@ async function getOneEbdi(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/ebdis/:id", async (req, res) => {
+app.get("/ebdis/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional"), async (req, res) => {
     try {
         await getOneEbdi("ebdis", Number(req.params.id), req, res);
     } catch (error) {
@@ -1385,10 +1264,8 @@ async function getListMediciones(collection, req, res) {
     res.json(data);
 }
 
-app.get("/mediciones", async (req, res) => {
+app.get("/mediciones", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
             await getManyReference("mediciones", req, res);
@@ -1569,7 +1446,7 @@ async function createMedicion(req, res) {
     }
 }
 
-app.post("/mediciones", async (req, res) => {
+app.post("/mediciones", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await createMedicion(req, res);
     } catch (error) {
@@ -1629,7 +1506,7 @@ async function getOneMedicion(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/mediciones/:id", async (req, res) => {
+app.get("/mediciones/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         await getOneMedicion("mediciones", Number(req.params.id), req, res);
     } catch (error) {
@@ -1905,7 +1782,7 @@ async function updateMedicion(req, res) {
     }
 }
 
-app.put("/mediciones/:id", async (req, res) => {
+app.put("/mediciones/:id", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await updateMedicion(req, res);
     } catch (error) {
@@ -2019,10 +1896,8 @@ async function getListSeguimientos(collection, req, res) {
     res.json(data);
 }
 
-app.get("/seguimientos", async (req, res) => {
+app.get("/seguimientos", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
             await getManyReference("seguimientos", req, res);
@@ -2195,7 +2070,7 @@ async function createSeguimiento(req, res) {
     }
 }
 
-app.post("/seguimientos", async (req, res) => {
+app.post("/seguimientos", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await createSeguimiento(req, res);
     } catch (error) {
@@ -2232,7 +2107,7 @@ async function getOneSeguimiento(collection, id, req, res) {
     res.json(data[0]);
 }
 
-app.get("/seguimientos/:id", async (req, res) => {
+app.get("/seguimientos/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         await getOneSeguimiento("seguimientos", Number(req.params.id), req, res);
     } catch (error) {
@@ -2464,7 +2339,7 @@ async function updateSeguimiento(req, res) {
     }
 }
 
-app.put("/seguimientos/:id", async (req, res) => {
+app.put("/seguimientos/:id", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await updateSeguimiento(req, res);
     } catch (error) {
@@ -2542,7 +2417,7 @@ async function getListCondiciones(req, res) {
     res.json(data);
 }
 
-app.get("/condiciones", async (req, res) => {
+app.get("/condiciones", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         if ("target" in req.query) {
             await getListCondiciones(req, res);
@@ -2580,7 +2455,7 @@ async function getOneCondicion(id, res) {
     res.json(data[0]);
 }
 
-app.get("/condiciones/:id", async (req, res) => {
+app.get("/condiciones/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         await getOneCondicion(Number(req.params.id), res);
     } catch (error) {
@@ -2664,7 +2539,7 @@ async function createCondicion(req, res) {
     }
 }
 
-app.post("/condiciones", async (req, res) => {
+app.post("/condiciones", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await createCondicion(req, res);
     } catch (error) {
@@ -2739,7 +2614,7 @@ async function updateCondicion(req, res) {
     }
 }
 
-app.put("/condiciones/:id", async (req, res) => {
+app.put("/condiciones/:id", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await updateCondicion(req, res);
     } catch (error) {
@@ -2834,7 +2709,7 @@ async function getListAccionesSeguimiento(req, res) {
     res.json(data);
 }
 
-app.get("/acciones_seguimiento", async (req, res) => {
+app.get("/acciones_seguimiento", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         if ("id" in req.query) {
             await getMany(req, res);
@@ -2877,7 +2752,7 @@ async function getOneAccionSeguimiento(id, res) {
     res.json(data[0]);
 }
 
-app.get("/acciones_seguimiento/:id", async (req, res) => {
+app.get("/acciones_seguimiento/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
         await getOneAccionSeguimiento(
             Number(req.params.id),
@@ -3007,7 +2882,7 @@ async function createAccionSeguimiento(req, res) {
     }
 }
 
-app.post("/acciones_seguimiento", async (req, res) => {
+app.post("/acciones_seguimiento", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await createAccionSeguimiento(req, res);
     } catch (error) {
@@ -3160,7 +3035,7 @@ async function updateAccionSeguimiento(req, res) {
     }
 }
 
-app.put("/acciones_seguimiento/:id", async (req, res) => {
+app.put("/acciones_seguimiento/:id", autenticarUsuario, autorizarRoles("administrador", "estancia"), async (req, res) => {
     try {
         await updateAccionSeguimiento(req, res);
     } catch (error) {
@@ -3176,7 +3051,7 @@ app.put("/acciones_seguimiento/:id", async (req, res) => {
 
 //------------------------------------------------------------------------------------------------------------------------------------
 
-app.post("/registrarse", async (req, res) => {
+app.post("/registrarse", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         let user = req.body.username;
         let pass = req.body.password;
@@ -3209,10 +3084,8 @@ app.post("/registrarse", async (req, res) => {
     }
 });
 
-
-
 function autenticarUsuario(req, res, next) {
-    const encabezado = req.headers.authorization;
+    const encabezado = req.headers.authentication;
 
     if (!encabezado || !encabezado.startsWith("Bearer ")) {
         return res.status(401).json({
@@ -3237,6 +3110,18 @@ function autenticarUsuario(req, res, next) {
             mensaje: "El token es inválido o ha expirado."
         });
     }
+}
+
+function autorizarRoles(...rolesPermitidos) {
+    return (req, res, next) => {
+        if (!req.usuario || !rolesPermitidos.includes(req.usuario.rol)) {
+            return res.status(403).json({
+                mensaje: "No tienes permisos para realizar esta acción."
+            });
+        }
+
+        next();
+    };
 }
 
  // demo
@@ -3384,7 +3269,7 @@ setInterval(async () => {
     }
 }, revision);
 
-app.get("/alertas", async (req, res) => {
+app.get("/alertas", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
         // Paginación solicitada por React-Admin
         const inicio = Math.max(0, Number.parseInt(req.query._start, 10) || 0);
@@ -3505,7 +3390,7 @@ async function detectarMedicionesPendientes() {
     };
 }
 
-app.post("/alertas/detectar-mediciones-pendientes", async (req, res) => {
+app.post("/alertas/detectar-mediciones-pendientes", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
         const resultado = await detectarMedicionesPendientes();
         res.json(resultado);
@@ -3517,7 +3402,7 @@ app.post("/alertas/detectar-mediciones-pendientes", async (req, res) => {
     }
 });
 
-app.get("/usuarios", async (req, res) => {
+app.get("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         // Paginación
         const inicio = Math.max(0, Number(req.query._start) || 0);
@@ -3603,7 +3488,7 @@ app.get("/usuarios", async (req, res) => {
     }
 });
 
-app.get("/roles", async (req, res) => {
+app.get("/roles", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         const inicio = Math.max(0, Number(req.query._start) || 0);
         const fin = Number(req.query._end) || 100;
@@ -3630,7 +3515,7 @@ app.get("/roles", async (req, res) => {
     }
 });
 
-app.post("/usuarios", async (req, res) => {
+app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         const { nombre, correo, password, id_rol, estado } = req.body;
         if ( typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || typeof password !== "string" || !password || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0) {
@@ -3710,7 +3595,7 @@ app.post("/usuarios", async (req, res) => {
     }
 });
 
-app.get("/usuarios/:id", async (req, res) => {
+app.get("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         const id = Number(req.params.id);
         if (!Number.isSafeInteger(id) || id <= 0) {
@@ -3749,7 +3634,7 @@ app.get("/usuarios/:id", async (req, res) => {
     }
 });
 
-app.put("/usuarios/:id", async (req, res) => {
+app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
         const id = Number(req.params.id);
         if (!Number.isSafeInteger(id) || id <= 0) {

@@ -10,9 +10,7 @@ const infantesFilters = [
         ]}
         emptyText="Todos" 
     />,
-    <ReferenceInput key="id_ebdi" source="id_ebdi" reference="ebdis" label="EBDI" >
-        <SelectInput optionText="nombre_ebdi" emptyText="Todas las EBDI" />
-    </ReferenceInput>,
+    <TextInput key="nombre_ebdi" source="nombre_ebdi" label="EBDI"/>,
     <SelectInput key="activo" source="activo" label="Expediente" choices={[
             { id: true, name: "Activo" },
             { id: false, name: "Inactivo" },
@@ -30,9 +28,7 @@ export function InfantesList() {
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
         <TextField source="sexo_patron" label="Sexo" />
-        <ReferenceField source="id_ebdi" reference="ebdis" label="EBDI">
-          <TextField source="nombre_ebdi"/>
-        </ReferenceField>
+        <TextField source="nombre_ebdi"/>
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
         <FunctionField label="Última medición" render={(record) => record.fecha_medicion || "Sin registro"} />
         {/* <FunctionField label="Días transcurridos" render={(record) => record.diasDesdeUltimaMedicion ?? "__"} /> */}
@@ -116,9 +112,7 @@ export function InfantesShow() {
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
         <TextField source="sexo_patron" label="Sexo" />
-        <ReferenceField source="id_ebdi" reference="ebdis" label="EBDI">
-          <TextField source="nombre_ebdi"/>
-        </ReferenceField>
+        <TextField source="nombre_ebdi"/>
         <DateField source="fecha_ingreso" label="Fecha de ingreso" />
         <BooleanField source="activo" label="Expediente activo" />
         {/* <BooleanField source="seguimientoActivo" label="Seguimiento activo" /> */}
