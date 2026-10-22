@@ -1303,63 +1303,32 @@ app.get("/ebdis/:id", async (req, res) => {
 async function getListMediciones(collection, req, res) {
     // Ordenamiento y paginación
     const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-
     const inicio = Math.max(0, Number(req.query._start) || 0);
     const finSolicitado = Number(req.query._end);
-    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio
-        ? finSolicitado
-        : inicio + 10;
+    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
     const limite = fin - inicio;
-
     // Obtener filtros enviados por React-Admin
     let filtro = {};
-
     if (req.query.filter) {
-        filtro = typeof req.query.filter === "string"
-            ? JSON.parse(req.query.filter)
-            : req.query.filter;
+        filtro = typeof req.query.filter === "string" ? JSON.parse(req.query.filter) : req.query.filter;
     }
-
-    const idInfante = filtro.id_infante
-        ?? req.query["filter[id_infante]"]
-        ?? req.query.id_infante;
-
-    const fechaMedicion = filtro.fecha_medicion
-        ?? req.query["filter[fecha_medicion]"]
-        ?? req.query.fecha_medicion;
-
-    const tipo = filtro.tipo
-        ?? req.query["filter[tipo]"]
-        ?? req.query.tipo;
-
-    const idEbdiCaptura = filtro.id_ebdi_captura
-        ?? req.query["filter[id_ebdi_captura]"]
-        ?? req.query.id_ebdi_captura;
-
+    const idInfante = filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante;
+    const fechaMedicion = filtro.fecha_medicion ?? req.query["filter[fecha_medicion]"] ?? req.query.fecha_medicion;
+    const tipo = filtro.tipo ?? req.query["filter[tipo]"] ?? req.query.tipo;
+    const idEbdiCaptura = filtro.id_ebdi_captura ?? req.query["filter[id_ebdi_captura]"] ?? req.query.id_ebdi_captura;
     // Construir filtros SQL
     const condiciones = [];
     const parametros = [];
-
-    if (
-        idInfante !== undefined &&
-        idInfante !== "" &&
-        Number.isInteger(Number(idInfante)) &&
-        Number(idInfante) > 0
-    ) {
+    if (idInfante !== undefined && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
         condiciones.push("m.id_infante = ?");
         parametros.push(Number(idInfante));
     }
-
-    if (
-        typeof fechaMedicion === "string" &&
-        /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)
-    ) {
+    if (typeof fechaMedicion === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)) {
         condiciones.push(
             "m.fecha_medicion >= ? AND m.fecha_medicion < DATE_ADD(?, INTERVAL 1 DAY)"
         );
         parametros.push(fechaMedicion, fechaMedicion);
     }
-
     if (tipo && ["periodica", "extraordinaria"].includes(String(tipo))) {
         condiciones.push("m.tipo = ?");
         parametros.push(String(tipo));
@@ -2777,18 +2746,52 @@ app.put("/condiciones/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListAccionesSeguimiento(req, res) {
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-    let inicio = Number(req.query._start) || 0;
-    let fin = Number(req.query._end) || inicio + 10;
-    let limite = fin - inicio;
-
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    const inicio = Number(req.query._start) || 0;
+    const fin = Number(req.query._end) || inicio + 10;
+    const limite = Math.max(0, fin - inicio);
+    let filtro = {};
+    if (req.query.filter) {
+        filtro = typeof req.query.filter === "string"
+            ? JSON.parse(req.query.filter)
+            : req.query.filter;
+    }
+    // Compatibilidad con filtros enviados como parámetros individuales.
+    const idInfante = filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante;
+    const idSeguimiento = filtro.id_seguimiento ?? req.query["filter[id_seguimiento]"] ?? req.query.id_seguimiento;
+    const fecha = filtro.fecha ?? req.query["filter[fecha]"] ?? req.query.fecha;
+    const responsableNombre = filtro.responsable_nombre ?? req.query["filter[responsable_nombre]"] ?? req.query.responsable_nombre;
+    const condiciones = [];
+    const parametros = [];
+    if (idInfante !== undefined && idInfante !== null && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
+        condiciones.push("s.id_infante = ?");
+        parametros.push(Number(idInfante));
+    }
+    if (idSeguimiento !== undefined && idSeguimiento !== null && idSeguimiento !== "" && Number.isInteger(Number(idSeguimiento)) && Number(idSeguimiento) > 0) {
+        condiciones.push("a.id_seguimiento = ?");
+        parametros.push(Number(idSeguimiento));
+    }
+    if (fecha) {
+        condiciones.push("DATE(a.fecha) = ?");
+        parametros.push(String(fecha).slice(0, 10));
+    }
+    if (responsableNombre !== undefined && responsableNombre !== null && String(responsableNombre).trim() !== "") {
+        condiciones.push("a.responsable_nombre LIKE ?");
+        parametros.push(`%${String(responsableNombre).trim()}%`);
+    }
+    const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
     const [data] = await pool.execute(
         `SELECT
             a.id_accion AS id,
             a.id_accion,
             a.id_seguimiento,
             s.id_infante,
-            CONCAT_WS(' ', i.nombre, i.apellido_paterno, i.apellido_materno) AS nombre_completo,
+            CONCAT_WS(
+                ' ',
+                i.nombre,
+                i.apellido_paterno,
+                i.apellido_materno
+            ) AS nombre_completo,
             DATE_FORMAT(a.fecha, '%Y-%m-%dT%H:%i') AS fecha,
             a.observaciones,
             a.acciones_realizadas,
@@ -2796,16 +2799,24 @@ async function getListAccionesSeguimiento(req, res) {
             a.responsable_usuario,
             a.registrado_por
          FROM acciones_seguimiento a
-         INNER JOIN seguimientos s ON a.id_seguimiento = s.id_seguimiento
-         INNER JOIN infantes i ON s.id_infante = i.id_infante
+         INNER JOIN seguimientos s
+            ON a.id_seguimiento = s.id_seguimiento
+         INNER JOIN infantes i
+            ON s.id_infante = i.id_infante
+         ${where}
          ORDER BY a.id_accion ${sortOrder}
          LIMIT ? OFFSET ?`,
-        [limite, inicio]
+        [...parametros, limite, inicio]
     );
-
     const [total] = await pool.execute(
         `SELECT COUNT(*) AS total
-         FROM acciones_seguimiento`
+         FROM acciones_seguimiento a
+         INNER JOIN seguimientos s
+            ON a.id_seguimiento = s.id_seguimiento
+         INNER JOIN infantes i
+            ON s.id_infante = i.id_infante
+         ${where}`,
+        parametros
     );
 
     res.set("Access-Control-Expose-Headers", "X-Total-Count");

@@ -1,8 +1,19 @@
 import { List, Datagrid, TextField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateTimeInput, NumberInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer} from "react-admin";
 
+const accionesFilters = [
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" alwaysOn>
+        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes" />
+    </ReferenceInput>,
+    <ReferenceInput key="id_seguimiento" source="id_seguimiento" reference="seguimientos" label="Caso de seguimiento" >
+        <SelectInput optionText="motivo" emptyText="Todos los casos" />
+    </ReferenceInput>,
+    <DateTimeInput key="fecha" source="fecha" label="Fecha y hora" />,
+    <TextInput key="responsable_nombre" source="responsable_nombre" label="Responsable" alwaysOn/>,
+];
+
 export function AccionesList() {
     return (
-        <List title="Acciones de seguimiento">
+        <List title="Acciones de seguimiento" filters={accionesFilters}>
             <Datagrid>
                 <TextField source="id_accion" label="ID" />
                 <ReferenceField source="id_seguimiento" reference="seguimientos" label="Infante">
