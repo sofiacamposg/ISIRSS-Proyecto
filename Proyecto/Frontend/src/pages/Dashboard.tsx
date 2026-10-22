@@ -147,19 +147,19 @@ const Dashboard = () => {
               <Box>
                 <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >EBDI</Typography>
                 <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                  Estancias para el Bienestar y Desarrollo Infantil.
                 </Typography>
               </Box>
               <Box>
                 <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >IMC</Typography>
                 <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                  El índice de masa corporal (IMC) sirve para medir la relación entre el peso y la talla, lo que  permite identificar el sobrepeso y la obesidad en adultos.
                 </Typography>
               </Box>
               <Box>
                 <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >CDC</Typography>
                 <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                  Los CDC (por sus siglas en inglés, Centers for Disease Control and Prevention, o Centros para el Control y la Prevención de Enfermedades) son la agencia nacional de salud pública de Estados Unidos.
                 </Typography>
               </Box>
             </Box>
