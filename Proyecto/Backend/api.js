@@ -1301,20 +1301,86 @@ app.get("/ebdis/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListMediciones(collection, req, res) {
-    let sortBy = req.query._sort || "id_medicion";
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    // Ordenamiento y paginación
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
-    let inicio = Number(req.query._start) || 0;
-    let fin = Number(req.query._end) || 10;
-    let limite = fin - inicio;
+    const inicio = Math.max(0, Number(req.query._start) || 0);
+    const finSolicitado = Number(req.query._end);
+    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio
+        ? finSolicitado
+        : inicio + 10;
+    const limite = fin - inicio;
 
-    // Validar la columna por la que se ordenará
-    if (true) {
-        sortBy = "id_medicion";
+    // Obtener filtros enviados por React-Admin
+    let filtro = {};
+
+    if (req.query.filter) {
+        filtro = typeof req.query.filter === "string"
+            ? JSON.parse(req.query.filter)
+            : req.query.filter;
     }
 
-    // Consultar registros
-    let [data] = await pool.execute(
+    const idInfante = filtro.id_infante
+        ?? req.query["filter[id_infante]"]
+        ?? req.query.id_infante;
+
+    const fechaMedicion = filtro.fecha_medicion
+        ?? req.query["filter[fecha_medicion]"]
+        ?? req.query.fecha_medicion;
+
+    const tipo = filtro.tipo
+        ?? req.query["filter[tipo]"]
+        ?? req.query.tipo;
+
+    const idEbdiCaptura = filtro.id_ebdi_captura
+        ?? req.query["filter[id_ebdi_captura]"]
+        ?? req.query.id_ebdi_captura;
+
+    // Construir filtros SQL
+    const condiciones = [];
+    const parametros = [];
+
+    if (
+        idInfante !== undefined &&
+        idInfante !== "" &&
+        Number.isInteger(Number(idInfante)) &&
+        Number(idInfante) > 0
+    ) {
+        condiciones.push("m.id_infante = ?");
+        parametros.push(Number(idInfante));
+    }
+
+    if (
+        typeof fechaMedicion === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)
+    ) {
+        condiciones.push(
+            "m.fecha_medicion >= ? AND m.fecha_medicion < DATE_ADD(?, INTERVAL 1 DAY)"
+        );
+        parametros.push(fechaMedicion, fechaMedicion);
+    }
+
+    if (tipo && ["periodica", "extraordinaria"].includes(String(tipo))) {
+        condiciones.push("m.tipo = ?");
+        parametros.push(String(tipo));
+    }
+    if (idEbdiCaptura !== undefined && idEbdiCaptura !== "" && Number.isInteger(Number(idEbdiCaptura)) && Number(idEbdiCaptura) > 0) {
+        condiciones.push("m.id_ebdi_captura = ?");
+        parametros.push(Number(idEbdiCaptura));
+    }
+    // Mantener únicamente la medición más reciente de cada infante
+    const condicionUltimaMedicion = `
+        m.id_medicion = (
+            SELECT m2.id_medicion
+            FROM mediciones_vigentes m2
+            WHERE m2.id_infante = m.id_infante
+            ORDER BY m2.fecha_medicion DESC, m2.id_medicion DESC
+            LIMIT 1
+        )
+    `;
+    const where = `WHERE ${condicionUltimaMedicion} ${condiciones.length > 0 ? "AND " + condiciones.join(" AND ") : ""}`;
+    // Consultar mediciones filtradas
+    const [data] = await pool.execute(
         `SELECT
             m.id_medicion AS id,
             m.id_medicion,
@@ -1324,29 +1390,15 @@ async function getListMediciones(collection, req, res) {
             m.talla_cm,
             m.perimetro_cefalico_cm,
             m.observaciones
-
-        FROM mediciones_vigentes m
-
-        WHERE m.id_medicion = (
-            SELECT m2.id_medicion
-            FROM mediciones_vigentes m2
-            WHERE m2.id_infante = m.id_infante
-            ORDER BY m2.fecha_medicion DESC, m2.id_medicion DESC
-            LIMIT 1
-        )
-
-        ORDER BY m.id_medicion ${sortOrder}
-        LIMIT ? OFFSET ?`,
-        [limite, inicio]
+         FROM mediciones_vigentes m
+         ${where}
+         ORDER BY m.id_medicion ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [...parametros, limite, inicio]
     );
-
-    // Consultar total de infantes que tienen mediciones
-    let [total] = await pool.execute(
-        `SELECT COUNT(DISTINCT id_infante) AS total
-         FROM mediciones_vigentes`
-    );
-
-    // Enviar total para la paginación de React Admin
+    // Contar las mediciones que cumplen los filtros
+    const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM mediciones_vigentes m ${where}`, parametros);
+    // Enviar total para la paginación de React-Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
     res.json(data);

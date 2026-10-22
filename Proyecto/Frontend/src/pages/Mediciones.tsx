@@ -1,5 +1,21 @@
 import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, FormDataConsumer, FunctionField, ReferenceInput, SelectInput, NumberInput, DateInput, TextInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
 
+const medicionesFilters = [
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" alwaysOn>
+        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes" />
+    </ReferenceInput>,
+    <DateInput key="fecha_medicion" source="fecha_medicion" label="Fecha de medición" alwaysOn/>,
+    <SelectInput key="tipo" source="tipo" label="Tipo de medición" choices={[
+            { id: "periodica", name: "Periódica" },
+            { id: "extraordinaria", name: "Extraordinaria" },
+        ]}
+        emptyText="Todos los tipos" alwaysOn
+    />,
+    <ReferenceInput key="id_ebdi_captura" source="id_ebdi_captura" reference="ebdis" label="EBDI donde se capturó" >
+        <SelectInput optionText="nombre_ebdi" emptyText="Todas las EBDI" />
+    </ReferenceInput>,
+];
+
 // Impide registrar mediciones con fechas futuras.
 const validarFechaMedicion = (value: string) => {
   if (!value) return undefined;
@@ -19,7 +35,7 @@ const validarFechaMedicion = (value: string) => {
 };
 export function MedicionesList() {
   return (
-    <List title="Mediciones de crecimiento">
+    <List title="Mediciones de crecimiento" filters={medicionesFilters}>
       <Datagrid>
         <TextField source="id" label="ID" />
         <ReferenceField source="id_infante" reference="infantes" label="Infante" >
