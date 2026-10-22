@@ -33,38 +33,36 @@ export function MedicionesCreate() {
         <DateInput source="fecha_medicion" label="Fecha de medición" validate={required()} />
         <NumberInput source="peso_kg" label="Peso (kg)" min={0.001} step={0.001} validate={required()} />
         <NumberInput source="talla_cm" label="Talla (cm)" min={0.01} step={0.01} validate={required()} />
-        <SelectInput source="tipo_talla" label="Tipo de talla" choices={[
-              {
-                  id: "longitud_acostado",
-                  name: "Longitud acostado",
-              },
-              {
-                  id: "talla_de_pie",
-                  name: "Talla de pie",
-              },
+        <SelectInput source="tipo_talla" label="Tipo de talla" 
+          choices={[
+            {
+              id: "longitud_acostado",
+              name: "Longitud acostado",
+            },
+            {
+              id: "talla_de_pie",
+              name: "Talla de pie",
+            },
           ]} validate={required()}/>
         <NumberInput source="perimetro_cefalico_cm" label="Perimetro cefálico (cm)" min={0.01} step={0.01} />
         <SelectInput source="tipo" label="Tipo de medición"
           choices={[
-              { id: "periodica", name: "Periódica" },
-              {
-                  id: "extraordinaria",
-                  name: "Extraordinaria",
-              },
+            { 
+              id: "periodica", 
+              name: "Periódica" 
+            },
+            {
+              id: "extraordinaria",
+              name: "Extraordinaria",
+            },
           ]}
           defaultValue="periodica"
           validate={required()}/>
-
+          
         <FormDataConsumer>
             {({ formData }) =>
                 formData.tipo === "extraordinaria" ? (
-                    <TextInput
-                        source="motivo_extraordinaria"
-                        label="Motivo de la medición extraordinaria"
-                        validate={required()}
-                        multiline
-                        fullWidth
-                    />
+                    <TextInput source="motivo_extraordinaria" label="Motivo de la medición extraordinaria" validate={required()} multiline fullWidth />
                 ) : null
             }
         </FormDataConsumer>
@@ -95,16 +93,43 @@ export function MedicionesShow() {
 
 export function MedicionesEdit() {
   return (
-    <Edit title="Editar medición">
+    <Edit title="Corregir medición">
       <SimpleForm>
-        <ReferenceInput source="id_infante" reference="infantes" label="Infante" >
-          <SelectInput optionText="nombre" validate={required()} fullWidth />
-        </ReferenceInput>
-        <DateInput source="fecha_medicion" label="Fecha de medición" validate={required()} />
-        <NumberInput source="peso_kg" label="Peso (kg)" min={0} step={0.01} validate={required()} />
-        <NumberInput source="talla_cm" label="Talla (cm)" min={0} step={0.1} validate={required()} />
-        <NumberInput source="perimetro_cefalico_cm" label="Perimetro cefálico (cm)" min={0.1} step={0.1} />
+        <DateInput source="fecha_medicion" label="Fecha de medición" validate={required()}/>
+        <NumberInput source="peso_kg" label="Peso (kg)" min={0.001} step={0.001} validate={required()}/>
+        <NumberInput source="talla_cm" label="Talla (cm)" min={0.01} step={0.01} validate={required()}/>
+        <SelectInput source="tipo_talla" label="Tipo de talla" 
+          choices={[
+            {
+              id: "longitud_acostado",
+              name: "Longitud acostado"
+            },
+            {
+              id: "talla_de_pie",
+              name: "Talla de pie"
+            }
+          ]} validate={required()}/>
+        <NumberInput source="perimetro_cefalico_cm" label="Perímetro cefálico (cm)" min={0.01} step={0.01}/>
+        <SelectInput source="tipo" label="Tipo de medición"
+          choices={[
+            {
+              id: "periodica",
+              name: "Periódica"
+            },
+            {
+              id: "extraordinaria",
+              name: "Extraordinaria"
+            }
+          ]} defaultValue="periodica" validate={required()}/>
+        <FormDataConsumer>
+          {({ formData }) =>
+            formData.tipo === "extraordinaria" ? (
+              <TextInput source="motivo_extraordinaria" label="Motivo de la medición extraordinaria" validate={required()} multiline fullWidth/>
+            ) : null
+          }
+        </FormDataConsumer>
         <TextInput source="observaciones" label="Observaciones" multiline fullWidth />
+        <TextInput source="motivo_correccion" label="Motivo de la corrección" helperText="Explica qué dato era incorrecto y por qué debe corregirse." validate={required()} multiline fullWidth/>
       </SimpleForm>
     </Edit>
   );

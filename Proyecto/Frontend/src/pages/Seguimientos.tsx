@@ -1,4 +1,4 @@
-import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton,} from "react-admin";
+import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer} from "react-admin";
 
 const estadosSeguimiento = [
   { id: "Sin seguimiento", name: "Sin seguimiento" },
@@ -12,12 +12,11 @@ export function SeguimientosList() {
     <List title="Seguimiento nutricional">
       <Datagrid rowClick="show">
         <TextField source="id" label="ID" />
-        <ReferenceField source="id_infante" reference="infantes" label="Infante" >
+        <ReferenceField source="id_infante" reference="infantes" label="Infante">
           <TextField source="nombre_completo" />
         </ReferenceField>
-        <DateField source="fecha_apertura" label="Fecha" />
+        <DateField source="fecha_apertura" label="Fecha de apertura" />
         <TextField source="motivo" label="Motivo" />
-        <TextField source="responsable_nombre" label="Responsable" />
         <TextField source="estado" label="Estado" />
         <ShowButton label="Ver caso" />
         <EditButton label="Editar" />
@@ -30,78 +29,31 @@ export function SeguimientosCreate() {
   return (
     <Create title="Registrar seguimiento">
       <SimpleForm>
-        <ReferenceInput
-          source="id_infante"
-          reference="infantes"
-          label="Infante"
-        >
-          <SelectInput
-            optionText="nombre_completo"
-            validate={required()}
-            fullWidth
-          />
+        <ReferenceInput source="id_infante" reference="infantes" label="Infante">
+          <SelectInput optionText="nombre_completo" validate={required()} fullWidth />
         </ReferenceInput>
-
-        <ReferenceInput
-          source="id_condicion"
-          reference="condiciones"
-          label="Condición de salud"
-        >
-          <SelectInput
-            optionText="nombre"
-            fullWidth
-          />
-        </ReferenceInput>
-
-        <DateInput
-          source="fecha_apertura"
-          label="Fecha de apertura"
-          validate={required()}
-        />
-
-        <TextInput
-          source="motivo"
-          label="Motivo del seguimiento"
-          validate={required()}
-          multiline
-          fullWidth
-        />
-
-        <SelectInput
-          source="estado"
-          label="Estado del seguimiento"
+        <FormDataConsumer>
+          {({ formData }) => formData.id_infante ? (
+            <ReferenceInput source="id_condicion" reference="condiciones" label="Condición de salud" filter={{ id_infante: formData.id_infante }}>
+              <SelectInput optionText="descripcion" fullWidth/>
+            </ReferenceInput>
+          ) : (
+            <SelectInput source="id_condicion" label="Condición de salud" choices={[]} disabled fullWidth/>
+          )}
+        </FormDataConsumer>
+        <DateInput source="fecha_apertura" label="Fecha de apertura" validate={required()}/>
+        <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} multiline fullWidth/>
+        <SelectInput source="estado" label="Estado del seguimiento"
           choices={[
-            { id: "requiere_seguimiento", name: "Requiere seguimiento" },
-            { id: "en_seguimiento", name: "En seguimiento" },
-            { id: "concluido", name: "Concluido" },
-          ]}
-          defaultValue="requiere_seguimiento"
-          validate={required()}
-          fullWidth
-        />
-        <TextInput
-          source="responsable_nombre"
-          label="Responsable"
-          validate={required()}
-          fullWidth
-        />
-
-        <TextInput
-            source="observaciones"
-            label="Observaciones"
-            multiline
-            minRows={3}
-            fullWidth
-        />
-
-        <TextInput
-            source="acciones_realizadas"
-            label="Acciones realizadas o programadas"
-            validate={required()}
-            multiline
-            minRows={3}
-            fullWidth
-        />
+            {
+              id: "requiere_seguimiento",
+              name: "Requiere seguimiento"
+            },
+            {
+              id: "en_seguimiento",
+              name: "En seguimiento"
+            }
+          ]} defaultValue="requiere_seguimiento" validate={required()} fullWidth/>
       </SimpleForm>
     </Create>
   );
@@ -112,15 +64,13 @@ export function SeguimientosShow() {
     <Show title="Detalle del seguimiento">
       <SimpleShowLayout>
         <TextField source="id" label="ID" />
-        <ReferenceField source="id_infante" reference="infantes" label="Infante" >
+        <ReferenceField source="id_infante" reference="infantes" label="Infante">
           <TextField source="nombre_completo" />
         </ReferenceField>
-        <DateField source="fecha_apertura" label="Fecha" />
+        <DateField source="fecha_apertura" label="Fecha de apertura" />
         <TextField source="motivo" label="Motivo" />
-        <TextField source="observaciones" label="Observaciones" />
-        <TextField source="acciones_realizadas" label="Acciones" />
-        <TextField source="responsable_nombre" label="Responsable" />
         <TextField source="estado" label="Estado" />
+        <DateField source="fecha_cierre" label="Fecha de cierre" />
       </SimpleShowLayout>
     </Show>
   );
@@ -130,15 +80,43 @@ export function SeguimientosEdit() {
   return (
     <Edit title="Editar seguimiento">
       <SimpleForm>
-        <ReferenceInput source="id_infante" reference="infantes" label="Infante" >
+        <ReferenceInput source="id_infante" reference="infantes" label="Infante">
           <SelectInput optionText="nombre_completo" validate={required()} fullWidth />
         </ReferenceInput>
-        <DateInput source="fecha_apertura" label="Fecha del seguimiento" validate={required()} />
-        <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} fullWidth />
-        <TextInput source="observaciones" label="Observaciones" multiline minRows={3} fullWidth />
-        <TextInput source="acciones_realizadas" label="Acciones realizadas o programadas" multiline minRows={3} fullWidth />
-        <TextInput source="responsable_nombre" label="Responsable" validate={required()} fullWidth />
-        <SelectInput source="estado" label="Estado del seguimiento" choices={estadosSeguimiento} validate={required()} fullWidth />
+        <FormDataConsumer>
+          {({ formData }) => formData.id_infante ? (
+            <ReferenceInput source="id_condicion" reference="condiciones" label="Condición de salud" filter={{ id_infante: formData.id_infante }}>
+              <SelectInput optionText="descripcion" fullWidth/>
+            </ReferenceInput>
+          ) : (
+            <SelectInput source="id_condicion" label="Condición de salud" choices={[]} disabled fullWidth/>
+          )}
+        </FormDataConsumer>
+        <DateInput source="fecha_apertura" label="Fecha de apertura" validate={required()}/>
+        <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} multiline fullWidth/>
+        <SelectInput source="estado" label="Estado del seguimiento"
+          choices={[
+            {
+              id: "requiere_seguimiento",
+              name: "Requiere seguimiento"
+            },
+            {
+              id: "en_seguimiento",
+              name: "En seguimiento"
+            },
+            {
+              id: "concluido",
+              name: "Concluido"
+            }
+          ]} validate={required()} fullWidth/>
+
+        <FormDataConsumer>
+          {({ formData }) =>
+            formData.estado === "concluido" ? (
+              <DateInput source="fecha_cierre" label="Fecha de cierre" validate={required()}/>
+            ) : null
+          }
+        </FormDataConsumer>
       </SimpleForm>
     </Edit>
   );

@@ -8,12 +8,21 @@ import { TutoresList, TutoresCreate , TutoresShow} from "./pages/Tutores";
 import { InfantesCreate, InfantesList, InfantesEdit, InfantesShow } from "./pages/Infantes";
 import { MedicionesCreate, MedicionesList, MedicionesEdit, MedicionesShow } from "./pages/Mediciones";
 import { SeguimientosCreate, SeguimientosEdit, SeguimientosList, SeguimientosShow } from "./pages/Seguimientos";
+import { CondicionesList, CondicionesShow, CondicionesCreate, CondicionesEdit} from "./pages/Condiciones";
+import { AccionesList, AccionesShow, AccionesCreate, AccionesEdit} from "./pages/Acciones";
 import { RegionesList, RegionesCreate, RegionesEdit, RegionesShow, EstadosList, EstadosCreate, EstadosEdit, EstadosShow, EBDIsList, EBDIsCreate, EBDIsEdit, EBDIsShow,} from "./pages/Catalogos";
 import { CrecimientoPage } from "./pages/Crecimiento";
 import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
 import { UsuariosList, UsuarioCreate, UsuarioEdit } from "./pages/Usuarios";
 import AppLayout from "./layout/AppLayout";
+//Imports para los links del Footer
+import { CustomRoutes } from "react-admin";
+import { Route } from "react-router-dom";
+import PreguntasFrecuentes from "./pages/PreguntasFrecuentes";
+import AvisoPrivacidad from "./pages/AvisoPrivacidad";
+import Ayuda from "./pages/Ayuda";
+
 //Icons
 import {
   PeopleOutline,
@@ -119,6 +128,22 @@ function App() {
       dashboard={Dashboard}
       layout={AppLayout}
     >
+  
+      <CustomRoutes>
+        <Route
+          path="/preguntas-frecuentes"
+          element={<PreguntasFrecuentes />}
+        />
+        <Route
+          path="/aviso-de-privacidad"
+          element={<AvisoPrivacidad />}
+        />
+        <Route
+          path="/ayuda"
+          element={<Ayuda />}
+        />
+      </CustomRoutes>
+
       <Resource
         name="infantes"
         list={InfantesList}
@@ -149,6 +174,22 @@ function App() {
         icon={AssignmentOutlined}
       />
 
+      <Resource
+        name="condiciones"
+        options={{ label: "Condiciones de salud" }}
+        list={CondicionesList}
+        create={CondicionesCreate}
+        show={CondicionesShow}
+        edit={CondicionesEdit}
+      />
+      <Resource
+        name="acciones_seguimiento"
+        options={{ label: "Acciones Seguimientos" }}
+        list={AccionesList}
+        create={AccionesCreate}
+        show={AccionesShow}
+        edit={AccionesEdit}
+      />
       <Resource
         name="crecimiento"
         options={{ label: "Gráficas de crecimiento" }}

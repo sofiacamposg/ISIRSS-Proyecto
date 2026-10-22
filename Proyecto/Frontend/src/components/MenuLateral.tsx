@@ -106,7 +106,9 @@ export function MenuLateral() {
                 <Menu.Item to="/" primaryText="Inicio" leftIcon={<HomeOutlined />} aria-current={paginaActual("/")} />
                 {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="infantes" aria-current={paginaActual("/infantes")} />}
                 {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="mediciones" aria-current={paginaActual("/mediciones")} />}
+                {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="condiciones" options={{ label: "Condiciones de Salud" }} aria-current={paginaActual("/condiciones")} />}
                 {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="seguimientos" options={{ label: "Seguimiento nutricional" }} aria-current={paginaActual("/seguimientos")} />}
+                {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="acciones_seguimiento" options={{ label: "Acciones a Seguimientos" }} aria-current={paginaActual("/acciones_seguimiento")} />}
                 {(esAdmin || esEstancia || esCoordinador || esTutor) && <Menu.ResourceItem name="crecimiento" aria-current={paginaActual("/crecimiento")} />}
 
                 {(esAdmin || esEstancia || esCoordinador) && <Categoria>Gestión</Categoria>}
