@@ -2450,13 +2450,12 @@ app.put("/seguimientos/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListCondiciones(req, res) {
-
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-    let inicio = Number(req.query._start) || 0;
-    let fin = Number(req.query._end) || inicio + 10;
-    let limite = fin - inicio;
-
-    //Permite consultar las condiciones de un infante.
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    const inicio = Math.max(0, Number(req.query._start) || 0);
+    const finSolicitado = Number(req.query._end);
+    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
+    const limite = fin - inicio;
+    // Permite consultar las condiciones de un infante.
     if ("target" in req.query) {
         if (req.query.target !== "id_infante") {
             return res.status(400).json({
@@ -2464,25 +2463,33 @@ async function getListCondiciones(req, res) {
             });
         }
     }
-
+    // Obtener los filtros enviados por React-Admin.
     let filtro = {};
-
     if (req.query.filter) {
         filtro = typeof req.query.filter === "string"
             ? JSON.parse(req.query.filter)
             : req.query.filter;
     }
-
-    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante);
-
-    let where = "";
-    let parametros = [];
-
-    if (Number.isInteger(idInfante) && idInfante > 0) {
-        where = "WHERE c.id_infante = ?";
-        parametros.push(idInfante);
+    const idInfante = filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante;
+    const fechaRegistro = filtro.fecha_registro ?? req.query["filter[fecha_registro]"] ?? req.query.fecha_registro;
+    const descripcion = filtro.descripcion ?? req.query["filter[descripcion]"] ?? req.query.descripcion;
+    // Construir las condiciones SQL.
+    const condiciones = [];
+    const parametros = [];
+    if (idInfante !== undefined && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
+        condiciones.push("c.id_infante = ?");
+        parametros.push(Number(idInfante));
     }
-
+    if (typeof fechaRegistro === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaRegistro)) {
+        condiciones.push("c.fecha_registro >= ? AND c.fecha_registro < DATE_ADD(?, INTERVAL 1 DAY)");
+        parametros.push(fechaRegistro, fechaRegistro);
+    }
+    if (descripcion !== undefined && String(descripcion).trim() !== "") {
+        condiciones.push("c.descripcion LIKE ?");
+        parametros.push(`%${String(descripcion).trim()}%`);
+    }
+    const where = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
+    // Consultar condiciones aplicando los filtros y la paginación.
     const [data] = await pool.execute(
         `SELECT
             c.id_condicion AS id,
@@ -2497,14 +2504,8 @@ async function getListCondiciones(req, res) {
          LIMIT ? OFFSET ?`,
         [...parametros, limite, inicio]
     );
-
-    const [total] = await pool.execute(
-        `SELECT COUNT(*) AS total
-         FROM condiciones_salud c
-         ${where}`,
-        parametros
-    );
-
+    // Contar únicamente los registros que cumplen los filtros.
+    const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM condiciones_salud c ${where}`, parametros);
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
     res.json(data);
