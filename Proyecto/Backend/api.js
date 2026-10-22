@@ -164,19 +164,10 @@ async function createData(collection, req, res) {
 }
 
 
-
-
-
-
-
-
-
-
 app.get("/tutores", async (req, res) => {
     try {
         let sortBy = req.query._sort || "id_tutor";
         const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-
         const inicio = Math.max(0, Number(req.query._start) || 0);
         const fin = Number(req.query._end) || inicio + 10;
         const limite = Math.max(0, fin - inicio);

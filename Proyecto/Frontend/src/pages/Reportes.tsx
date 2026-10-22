@@ -5,39 +5,37 @@ import { Box, Card, CardContent, Typography, Grid, TextField, MenuItem, Button, 
 // Datos que utilizan los reportes.
 type Infante = {
   id: number;
-  nombre: string;
-  ultimaMedicion?: string;
-  diasDesdeUltimaMedicion?: number | null;
-  estadoSeguimiento?: string;
+  nombre_completo: string;
+  fecha_medicion?: string | null;
+  estado?: string | null;
 };
 
 type Medicion = {
   id: number;
-  infanteId: number;
-  fecha: string;
-  pesoKg: number;
-  tallaCm: number;
-  perimetroCefalicoCm?: number;
-  observaciones?: string;
+  id_infante: number;
+  fecha_medicion: string;
+  peso_kg: number;
+  talla_cm: number;
+  perimetro_cefalico_cm?: number | null;
+  observaciones?: string | null;
 };
 
 type Seguimiento = {
   id: number;
-  infanteId: number;
-  fecha: string;
+  id_seguimiento: number;
+  id_infante: number;
+  fecha_apertura: string;
   motivo: string;
-  responsable: string;
   estado: string;
+  fecha_cierre?: string | null;
 };
 
 // Comprueba si la fecha está dentro del periodo seleccionado.
-function fechaDentroDelRango(
-  fecha: string,
-  desde: string,
-  hasta: string
-) {
-  if (desde && fecha < desde) return false;
-  if (hasta && fecha > hasta) return false;
+function fechaDentroDelRango(fecha: string, desde: string, hasta: string) {
+  const fechaDia = String(fecha ?? "").slice(0, 10);
+  if (!fechaDia) return false;
+  if (desde && fechaDia < desde) return false;
+  if (hasta && fechaDia > hasta) return false;
   return true;
 }
 
@@ -102,8 +100,8 @@ export const ReportesPage = () => {
     isPending: cargandoInfantes,
     error: errorInfantes,
   } = useGetList<Infante>("infantes", {
-    pagination: { page: 1, perPage: 1000 },
-    sort: { field: "nombre", order: "ASC" },
+    pagination: { page: 1, perPage: 100 },
+    sort: { field: "nombre_completo", order: "ASC" },
   });
   const {
     data: mediciones = [],
@@ -111,7 +109,7 @@ export const ReportesPage = () => {
     error: errorMediciones,
   } = useGetList<Medicion>("mediciones", {
     pagination: { page: 1, perPage: 1000 },
-    sort: { field: "fecha", order: "DESC" },
+    sort: { field: "id", order: "DESC" },
   });
   const {
     data: seguimientos = [],
@@ -119,7 +117,7 @@ export const ReportesPage = () => {
     error: errorSeguimientos,
   } = useGetList<Seguimiento>("seguimientos", {
     pagination: { page: 1, perPage: 1000 },
-    sort: { field: "fecha", order: "DESC" },
+    sort: { field: "id", order: "DESC" },
   });
   // Impide exportar si la fecha inicial supera a la final.
   const rangoInvalido = Boolean(fechaDesde && fechaHasta && fechaDesde > fechaHasta);
@@ -128,32 +126,37 @@ export const ReportesPage = () => {
   // Aplica los filtros de infante y fechas a las mediciones.
   const medicionesFiltradas = useMemo(() => {
     return mediciones.filter((medicion) => {
-      const coincideInfante = infanteSeleccionado === "" || String(medicion.infanteId) === infanteSeleccionado;
+      const coincideInfante = infanteSeleccionado === "" || String(medicion.id_infante) === infanteSeleccionado;
+      const fecha = String(medicion.fecha_medicion ?? "").slice(0, 10);
       return (
         coincideInfante &&
-        fechaDentroDelRango(medicion.fecha, fechaDesde, fechaHasta)
+        fechaDentroDelRango(fecha, fechaDesde, fechaHasta)
       );
     });
   }, [mediciones, infanteSeleccionado, fechaDesde, fechaHasta]);
   // Aplica los mismos filtros a los seguimientos.
   const seguimientosFiltrados = useMemo(() => {
     return seguimientos.filter((seguimiento) => {
-      const coincideInfante = infanteSeleccionado === "" || String(seguimiento.infanteId) === infanteSeleccionado;
+      const coincideInfante = infanteSeleccionado === "" || String(seguimiento.id_infante) === infanteSeleccionado;
+      const fecha = String(seguimiento.fecha_apertura ?? "").slice(0, 10);
       return (
         coincideInfante &&
-        fechaDentroDelRango(seguimiento.fecha, fechaDesde, fechaHasta)
+        fechaDentroDelRango(fecha, fechaDesde, fechaHasta)
       );
     });
   }, [seguimientos, infanteSeleccionado, fechaDesde, fechaHasta]);
-
   // Calcula los números que aparecen en las tarjetas.
   const infantesConMediciones = useMemo(() => {
-    const ids = new Set(mediciones.map((medicion) => medicion.infanteId));
+    const ids = new Set(mediciones.map((medicion) => medicion.id_infante));
     return ids.size;
   }, [mediciones]);
 
   const alertasPendientes = useMemo(() => {
-    return infantes.filter((infante) => infante.estadoSeguimiento !== "Al día").length;
+    return infantes.filter(
+      (infante) =>
+        infante.estado === "requiere_seguimiento" ||
+        infante.estado === "en_seguimiento"
+    ).length;
   }, [infantes]);
 
   // Cuenta los seguimientos según su estado.
@@ -167,7 +170,7 @@ export const ReportesPage = () => {
     );
   }, [seguimientosFiltrados]);
 
-  const nombreInfante = (id: number) => infantes.find((infante) => infante.id === id)?.nombre ?? `Infante ${id}`;
+  const nombreInfante = (id: number) => infantes.find((infante) => Number(infante.id) === Number(id)) ?.nombre_completo ?? `Infante ${id}`;
   // Restablece todos los filtros.
   const limpiarFiltros = () => {
     setInfanteSeleccionado("");
@@ -225,7 +228,7 @@ export const ReportesPage = () => {
             <MenuItem value="">Todos los infantes</MenuItem>
             {infantes.map((infante) => (
               <MenuItem key={infante.id} value={String(infante.id)}>
-                {infante.nombre}
+                {infante.nombre_completo}
               </MenuItem>
             ))}
           </TextField>
@@ -263,11 +266,11 @@ export const ReportesPage = () => {
                 "Observaciones",
               ],
               medicionesFiltradas.map((medicion) => [
-                nombreInfante(medicion.infanteId),
-                medicion.fecha,
-                medicion.pesoKg,
-                medicion.tallaCm,
-                medicion.perimetroCefalicoCm ?? "",
+                nombreInfante(medicion.id_infante),
+                medicion.fecha_medicion,
+                medicion.peso_kg,
+                medicion.talla_cm,
+                medicion.perimetro_cefalico_cm ?? "",
                 medicion.observaciones ?? "",
               ])
             )
@@ -287,10 +290,10 @@ export const ReportesPage = () => {
                 "Estado",
               ],
               seguimientosFiltrados.map((seguimiento) => [
-                nombreInfante(seguimiento.infanteId),
-                seguimiento.fecha,
+                nombreInfante(seguimiento.id_infante),
+                seguimiento.fecha_apertura,
                 seguimiento.motivo,
-                seguimiento.responsable,
+                //seguimiento.responsable,
                 seguimiento.estado,
               ])
             )
@@ -338,11 +341,11 @@ export const ReportesPage = () => {
           <TableBody>
             {medicionesFiltradas.map((medicion) => (
               <TableRow key={medicion.id}>
-                <TableCell>{nombreInfante(medicion.infanteId)}</TableCell>
-                <TableCell>{formatearFecha(medicion.fecha)}</TableCell>
-                <TableCell align="right">{medicion.pesoKg}</TableCell>
-                <TableCell align="right">{medicion.tallaCm}</TableCell>
-                <TableCell align="right">{medicion.perimetroCefalicoCm ?? "—"}</TableCell>
+                <TableCell>{nombreInfante(medicion.id_infante)}</TableCell>
+                <TableCell>{formatearFecha(medicion.fecha_medicion)}</TableCell>
+                <TableCell align="right">{medicion.peso_kg}</TableCell>
+                <TableCell align="right">{medicion.talla_cm}</TableCell>
+                <TableCell align="right">{medicion.perimetro_cefalico_cm ?? "—"}</TableCell>
                 <TableCell>{medicion.observaciones || "—"}</TableCell>
               </TableRow>
             ))}
@@ -366,17 +369,17 @@ export const ReportesPage = () => {
               <TableCell>Infante</TableCell>
               <TableCell>Fecha</TableCell>
               <TableCell>Motivo</TableCell>
-              <TableCell>Responsable</TableCell>
+              {/*<TableCell>Responsable</TableCell>*/}
               <TableCell>Estado</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {seguimientosFiltrados.map((seguimiento) => (
               <TableRow key={seguimiento.id}>
-                <TableCell>{nombreInfante(seguimiento.infanteId)}</TableCell>
-                <TableCell>{formatearFecha(seguimiento.fecha)}</TableCell>
+                <TableCell>{nombreInfante(seguimiento.id_infante)}</TableCell>
+                <TableCell>{formatearFecha(seguimiento.fecha_apertura)}</TableCell>
                 <TableCell>{seguimiento.motivo}</TableCell>
-                <TableCell>{seguimiento.responsable}</TableCell>
+                {/*<TableCell>{seguimiento.responsable}</TableCell>*/}
                 <TableCell>{seguimiento.estado}</TableCell>
               </TableRow>
             ))}
