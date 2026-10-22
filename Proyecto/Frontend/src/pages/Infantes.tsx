@@ -1,8 +1,29 @@
 import {List, Datagrid, TextField, DateField, NumberField, FunctionField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, ReferenceManyField, ReferenceInput, ReferenceField, BooleanField} from "react-admin";
 
+const infantesFilters = [
+    <TextInput key="matricula" source="matricula" label="Matrícula" alwaysOn />,
+    <TextInput key="nombre_completo" source="nombre_completo" label="Nombre completo" />,
+    <SelectInput key="sexo_patron" source="sexo_patron" label="Sexo"
+        choices={[
+            { id: "Femenino", name: "Femenino" },
+            { id: "Masculino", name: "Masculino" },
+        ]}
+        emptyText="Todos" 
+    />,
+    <ReferenceInput key="id_ebdi" source="id_ebdi" reference="ebdis" label="EBDI" >
+        <SelectInput optionText="nombre_ebdi" emptyText="Todas las EBDI" />
+    </ReferenceInput>,
+    <SelectInput key="activo" source="activo" label="Expediente" choices={[
+            { id: true, name: "Activo" },
+            { id: false, name: "Inactivo" },
+        ]}
+        emptyText="Todos" alwaysOn
+    />,
+];
+
 export function InfantesList() {
   return (
-    <List title="Infantes registrados">
+    <List title="Infantes registrados" filters={infantesFilters} filterDefaultValues={{activo: true}}>
       <Datagrid rowClick="show">
         <TextField source="id" label="ID" />
         <TextField source="matricula" label="Matrícula" />

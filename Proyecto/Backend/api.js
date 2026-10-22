@@ -298,15 +298,10 @@ app.get("/tutores/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListInfantes(collection, req, res) {
-
-    //Obtener infantes específicos para ReferenceField / getMany
+    // Obtener infantes específicos para ReferenceField / getMany
     if (req.query.id) {
-        const ids = Array.isArray(req.query.id)
-            ? req.query.id
-            : [req.query.id];
-
+        const ids = Array.isArray(req.query.id) ? req.query.id : [req.query.id];
         const placeholders = ids.map(() => "?").join(",");
-
         const [data] = await pool.execute(
             `SELECT
                 i.id_infante AS id,
@@ -320,20 +315,97 @@ async function getListInfantes(collection, req, res) {
              WHERE i.id_infante IN (${placeholders})`,
             ids
         );
-
         return res.json(data);
     }
-
-    let sortBy = req.query._sort || "id_infante";
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
-
-    let inicio = Number(req.query._start) || 0;
-    let fin = Number(req.query._end) || 10;
-    let limite = fin - inicio;
-
-    // Consultar registros
-    // Consultar una sola fila por infante
-    let [data] = await pool.execute(
+    // Paginación
+    const inicio = Math.max(0, Number(req.query._start) || 0);
+    const fin = Number(req.query._end) || 10;
+    const limite = Math.max(1, Math.min(fin - inicio, 100));
+    // Ordenamiento permitido
+    const columnasPermitidas = {
+        id: "i.id_infante",
+        id_infante: "i.id_infante",
+        matricula: "i.matricula",
+        nombre_completo: "nombre_completo",
+        fecha_nacimiento: "i.fecha_nacimiento",
+        sexo_patron: "i.sexo_patron",
+        id_ebdi: "i.id_ebdi",
+        fecha_ingreso: "i.fecha_ingreso",
+        activo: "i.activo"
+    };
+    const sortSolicitado = String(req.query._sort || "id_infante");
+    const sortBy = columnasPermitidas[sortSolicitado] || "i.id_infante";
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    // Construir filtros
+    const condiciones = [];
+    const parametros = [];
+    const matricula = String(req.query.matricula || "").trim();
+    const nombre = String(req.query.nombre_completo || "").trim();
+    const sexo = String(req.query.sexo_patron || "").trim();
+    const idEbdi = req.query.id_ebdi;
+    const activo = req.query.activo;
+    const estado = String(req.query.estado || "").trim();
+    if (matricula) {
+        condiciones.push("i.matricula LIKE ?");
+        parametros.push(`%${matricula}%`);
+    }
+    if (nombre) {
+        condiciones.push(`
+            CONCAT_WS(' ',
+                i.nombre,
+                i.apellido_paterno,
+                i.apellido_materno
+            ) LIKE ?
+        `);
+        parametros.push(`%${nombre}%`);
+    }
+    if (sexo) {
+        if (!["Femenino", "Masculino"].includes(sexo)) {
+            return res.status(400).json({
+                mensaje: "El sexo seleccionado no es válido."
+            });
+        }
+        condiciones.push("i.sexo_patron = ?");
+        parametros.push(sexo);
+    }
+    if (idEbdi !== undefined && idEbdi !== "" && Number.isInteger(Number(idEbdi)) && Number(idEbdi) > 0) {
+        condiciones.push("i.id_ebdi = ?");
+        parametros.push(Number(idEbdi));
+    }
+    if (activo !== undefined && activo !== "") {
+        let valorActivo;
+        if (activo === true || activo === "true" || activo === "1") {
+            valorActivo = 1;
+        } else if (
+            activo === false ||
+            activo === "false" ||
+            activo === "0"
+        ) {
+            valorActivo = 0;
+        } else {
+            return res.status(400).json({
+                mensaje: "El estado del expediente no es válido."
+            });
+        }
+        condiciones.push("i.activo = ?");
+        parametros.push(valorActivo);
+    }
+    // Filtrar por el estado del seguimiento más reciente
+    if (estado) {
+        condiciones.push(`
+            (
+                SELECT s.estado
+                FROM seguimientos s
+                WHERE s.id_infante = i.id_infante
+                ORDER BY s.id_seguimiento DESC
+                LIMIT 1
+            ) = ?
+        `);
+        parametros.push(estado);
+    }
+    const whereSQL = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
+    // Consultar infantes, conservando los datos originales
+    const [data] = await pool.execute(
         `SELECT
             i.id_infante AS id,
             i.matricula,
@@ -348,14 +420,12 @@ async function getListInfantes(collection, req, res) {
             i.fecha_ingreso,
             i.activo,
             i.restricciones_nutricionales,
-
             mv.fecha_medicion,
             mv.edad_dias,
             mv.peso_kg,
             mv.talla_cm,
             mv.perimetro_cefalico_cm AS perimetro_cefalico,
             mv.observaciones,
-
             (
                 SELECT t.nombre
                 FROM infante_tutor it2
@@ -365,7 +435,6 @@ async function getListInfantes(collection, req, res) {
                 ORDER BY it2.id_tutor ASC
                 LIMIT 1
             ) AS nombre_tutor,
-
             (
                 SELECT s.estado
                 FROM seguimientos s
@@ -373,9 +442,7 @@ async function getListInfantes(collection, req, res) {
                 ORDER BY s.id_seguimiento DESC
                 LIMIT 1
             ) AS estado
-
         FROM infantes i
-
         LEFT JOIN mediciones_vigentes mv
             ON i.id_infante = mv.id_infante
             AND mv.id_medicion = (
@@ -385,21 +452,17 @@ async function getListInfantes(collection, req, res) {
                 ORDER BY m2.fecha_medicion DESC, m2.id_medicion DESC
                 LIMIT 1
             )
-
-        ORDER BY i.id_infante ${sortOrder}
+        ${whereSQL}
+        ORDER BY ${sortBy} ${sortOrder}
         LIMIT ? OFFSET ?`,
-        [limite, inicio]
+        [...parametros, limite, inicio]
     );
-
-    // Consultar total de registros
-    let [total] = await pool.execute(
-        `SELECT COUNT(*) AS total FROM infantes;`
-    );
-
-    // Enviar total para la paginación de React Admin
+    // Contar solamente los infantes que coinciden con los filtros
+    const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM infantes i ${whereSQL}`, parametros);
+    // Enviar total para la paginación de React-Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
     res.set("X-Total-Count", String(total[0].total));
-    res.json(data);
+    return res.json(data);
 }
 
 app.get("/infantes", async (req, res) => {
@@ -3176,19 +3239,12 @@ app.post("/login", async (req, res) => {
         let passwordValida = false;
         if (typeof passwordGuardada === "string" && passwordGuardada.startsWith("$argon2")) {
             // Verificar hashes Argon2 existentes.
-            passwordValida = await argon2.verify(
-                passwordGuardada,
-                password
-            );
+            passwordValida = await argon2.verify(passwordGuardada, password);
         } else {
-            // Compatibilidad temporal SOLO con contraseñas
-            // que se sabe que están almacenadas en texto plano.
+            // Compatibilidad temporal SOLO con contraseñas que se sabe que están almacenadas en texto plano.
             passwordValida = password === passwordGuardada;
             if (passwordValida) {
-                const nuevoHash = await argon2.hash(
-                    password,
-                    ARGON2_OPTIONS
-                );
+                const nuevoHash = await argon2.hash(password, ARGON2_OPTIONS);
                 await pool.execute(
                     `UPDATE usuarios
                      SET password_hash = ?
@@ -3238,7 +3294,6 @@ app.post("/login", async (req, res) => {
 app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
     try {
         const idUsuario = req.usuario.id_usuario;
-
         const [usuarios] = await pool.execute(
             `SELECT
                 id_usuario,
@@ -3251,19 +3306,16 @@ app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
              LIMIT 1`,
             [idUsuario]
         );
-
         if (usuarios.length === 0) {
             return res.status(404).json({
                 mensaje: "El usuario ya no existe."
             });
         }
-
         if (usuarios[0].estado !== "activo") {
             return res.status(403).json({
                 mensaje: "La cuenta no está activa."
             });
         }
-
         return res.json({
             id_usuario: usuarios[0].id_usuario,
             nombre: usuarios[0].nombre,
@@ -3272,7 +3324,6 @@ app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
         });
     } catch (error) {
         console.error("Error en GET /usuario-actual:", error);
-
         return res.status(500).json({
             mensaje: "Error al consultar el usuario actual."
         });
@@ -3289,8 +3340,7 @@ detectarMedicionesPendientes()
     });
 
 // Ejecutar la revisión cada 24 horas.
-const UN_DIA = 24 * 60 * 60 * 1000;
-
+const revision = 24 * 60 * 60 * 1000;
 setInterval(async () => {
     try {
         const resultado = await detectarMedicionesPendientes();
@@ -3298,31 +3348,21 @@ setInterval(async () => {
     } catch (error) {
         console.error("Error en la revisión automática:", error);
     }
-}, UN_DIA);
+}, revision);
 
 app.listen(PORT, async () => {
     console.log("Backend corriendo en puerto 3000");
 });
 
-
 app.get("/alertas", async (req, res) => {
     try {
         // Paginación solicitada por React-Admin
-        const inicio = Math.max(
-            0,
-            Number.parseInt(req.query._start, 10) || 0
-        );
+        const inicio = Math.max(0, Number.parseInt(req.query._start, 10) || 0);
         const finSolicitado = Number.parseInt(req.query._end, 10);
         const fin = Number.isFinite(finSolicitado) ? Math.max(inicio, finSolicitado) : inicio + 25;
         const limite = Math.min(fin - inicio, 100);
         // Solo permitimos ordenar por columnas conocidas
-        const columnasOrdenables = {
-            id: "a.id_alerta",
-            id_alerta: "a.id_alerta",
-            tipo: "a.tipo",
-            estado: "a.estado",
-            creada_en: "a.creada_en",
-        };
+        const columnasOrdenables = {id: "a.id_alerta", id_alerta: "a.id_alerta", tipo: "a.tipo", estado: "a.estado", creada_en: "a.creada_en",};
         const sortSolicitado = req.query._sort || "creada_en";
         const sortBy = columnasOrdenables[sortSolicitado] || "a.creada_en";
         const sortOrder = String(req.query._order).toUpperCase() === "ASC" ? "ASC" : "DESC";
@@ -3403,11 +3443,7 @@ async function detectarMedicionesPendientes() {
                     OR DATE(creada_en) > ?
                )
              LIMIT 1`,
-            [
-                infante.id_infante,
-                infante.ultima_medicion,
-                infante.ultima_medicion
-            ]
+            [infante.id_infante, infante.ultima_medicion, infante.ultima_medicion]
         );
         if (existentes.length > 0) {
             omitidas++;
@@ -3427,10 +3463,7 @@ async function detectarMedicionesPendientes() {
                 mensaje,
                 estado
             ) VALUES (?, NULL, 'medicion_pendiente', ?, 'pendiente')`,
-            [
-                infante.id_infante,
-                mensaje
-            ]
+            [infante.id_infante, mensaje]
         );
         creadas++;
     }
@@ -3453,11 +3486,14 @@ app.post("/alertas/detectar-mediciones-pendientes", async (req, res) => {
         });
     }
 });
+
 app.get("/usuarios", async (req, res) => {
     try {
+        // Paginación
         const inicio = Math.max(0, Number(req.query._start) || 0);
         const fin = Number(req.query._end) || 10;
         const limite = Math.max(1, Math.min(fin - inicio, 100));
+        // Ordenamiento
         const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
         const columnasPermitidas = [
             "id_usuario",
@@ -3469,6 +3505,38 @@ app.get("/usuarios", async (req, res) => {
         ];
         const sortSolicitado = String(req.query._sort || "id_usuario");
         const sortBy = columnasPermitidas.includes(sortSolicitado) ? sortSolicitado : "id_usuario";
+        // Filtros recibidos desde React-Admin
+        const condiciones = [];
+        const parametros = [];
+        const nombre = String(req.query.nombre || "").trim();
+        const correo = String(req.query.correo || "").trim();
+        const idRol = req.query.id_rol;
+        const estado = String(req.query.estado || "").trim();
+        if (nombre) {
+            condiciones.push("u.nombre LIKE ?");
+            parametros.push(`%${nombre}%`);
+        }
+        if (correo) {
+            condiciones.push("u.correo LIKE ?");
+            parametros.push(`%${correo}%`);
+        }
+        if (idRol !== undefined && idRol !== "" && Number.isInteger(Number(idRol)) && Number(idRol) > 0) {
+            condiciones.push("u.id_rol = ?");
+            parametros.push(Number(idRol));
+        }
+        const estadosPermitidos = ["activo", "bloqueado", "baja"];
+        if (estado) {
+            if (!estadosPermitidos.includes(estado)) {
+                return res.status(400).json({
+                    mensaje: "El estado seleccionado no es válido."
+                });
+            }
+            condiciones.push("u.estado = ?");
+            parametros.push(estado);
+        }
+        // WHERE dinámico
+        const whereSQL = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
+        // Consultar usuarios filtrados y paginados
         const [usuarios] = await pool.execute(
             `SELECT
                 u.id_usuario AS id,
@@ -3481,14 +3549,21 @@ app.get("/usuarios", async (req, res) => {
                 u.creado_en
              FROM usuarios u
              INNER JOIN roles r ON r.id_rol = u.id_rol
+             ${whereSQL}
              ORDER BY u.\`${sortBy}\` ${sortOrder}
              LIMIT ? OFFSET ?`,
-            [limite, inicio]
+            [...parametros, limite, inicio]
         );
-        const [total] = await pool.execute("SELECT COUNT(*) AS total FROM usuarios");
+        // Contar únicamente los usuarios que coinciden con los filtros
+        const [total] = await pool.execute(
+            `SELECT COUNT(*) AS total
+             FROM usuarios u
+             INNER JOIN roles r ON r.id_rol = u.id_rol
+             ${whereSQL}`,
+            parametros
+        );
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
-        // Nunca enviar password_hash al frontend.
         res.json(usuarios);
     } catch (error) {
         console.error("Error en GET /usuarios:", error);
@@ -3652,13 +3727,7 @@ app.put("/usuarios/:id", async (req, res) => {
                 mensaje: "El ID del usuario no es válido."
             });
         }
-        const {
-            nombre,
-            correo,
-            password,
-            id_rol,
-            estado
-        } = req.body;
+        const {nombre, correo, password, id_rol, estado} = req.body;
         if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0 || !["activo", "bloqueado", "baja"].includes(estado)) {
             return res.status(400).json({
                 mensaje: "Verifica el nombre, correo, rol y estado."

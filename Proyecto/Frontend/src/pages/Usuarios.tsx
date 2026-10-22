@@ -2,7 +2,7 @@ import {List, Datagrid, TextField, EmailField, DateField, FunctionField, Create,
 
 // Filtros de la lista de usuarios
 const usuarioFilters = [
-    <TextInput key="nombre" source="nombre" label="Nombre completo" alwaysOn />,
+    <TextInput key="nombre" source="nombre" label="Nombre completo" />,
     <TextInput key="correo" source="correo" label="Correo electrónico" alwaysOn />,
     <ReferenceInput key="id_rol" source="id_rol" reference="roles" label="Rol" >
         <SelectInput optionText="nombre" emptyText="Todos los roles" />
@@ -12,12 +12,12 @@ const usuarioFilters = [
             { id: "bloqueado", name: "Bloqueado" },
             { id: "baja", name: "Baja" },
         ]}
-        emptyText="Todos los estados"
+        emptyText="Todos los estados" alwaysOn
     />,
 ];
 
 export const UsuariosList = () => (
-    <List title="Usuarios del sistema" sort={{ field: "id_usuario", order: "DESC" }} perPage={10} filters={usuarioFilters}>
+    <List title="Usuarios del sistema" sort={{ field: "id_usuario", order: "DESC" }} perPage={10} filters={usuarioFilters} filterDefaultValues={{ estado: "activo"}}>
         <Datagrid bulkActionButtons={false}>
             <TextField source="id_usuario" label="ID" />
             <TextField source="nombre" label="Nombre completo" />
