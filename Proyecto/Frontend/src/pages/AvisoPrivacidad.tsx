@@ -30,7 +30,7 @@ export default function AvisoPrivacidad() {
 
       {/* Introducción */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" fontWeight={700} gutterBottom>
+        <Typography  variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           Protección de datos personales
         </Typography>
 
@@ -48,12 +48,7 @@ export default function AvisoPrivacidad() {
 
       {/* Sección 1 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+        <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom >
           <DescriptionOutlined
             sx={{ verticalAlign: "middle", mr: 1 }}
           />
@@ -83,12 +78,7 @@ export default function AvisoPrivacidad() {
 
       {/* Sección 2 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+        <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom >
           2. Finalidad del tratamiento de los datos
         </Typography>
 
@@ -102,12 +92,7 @@ export default function AvisoPrivacidad() {
 
       {/* Sección 3 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+        <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom >
           <LockOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           3. Acceso a la información
         </Typography>
@@ -122,12 +107,7 @@ export default function AvisoPrivacidad() {
 
       {/* Sección 4 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+        <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom >
           <SecurityOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           4. Protección de la información
         </Typography>
@@ -142,32 +122,19 @@ export default function AvisoPrivacidad() {
 
       {/* Sección 5 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+        <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom >
           5. Derechos de los titulares
         </Typography>
 
         <Typography color="text.secondary" sx={{ lineHeight: 1.8 }}>
-          Los titulares de los datos personales o sus
-          representantes legales podrán ejercer los derechos
-          que correspondan conforme a la legislación aplicable,
-          mediante los canales oficiales designados por la
-          institución responsable.
+          Los titulares de los datos personales o sus representantes legales podrán ejercer los derechos que correspondan conforme a la legislación aplicable,
+          mediante los canales oficiales designados por la institución responsable.
         </Typography>
       </Box>
 
       {/* Sección 6 */}
       <Box sx={{ mb: 3 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+        <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom >
           <ContactMailOutlined
             sx={{ verticalAlign: "middle", mr: 1 }}
           />

@@ -124,7 +124,7 @@ function App() {
     <Admin
       title="Plataforma de Crecimiento y Desarrollo Saludable"
       theme={tema}
-      darkTheme={defaultDarkTheme}
+      // darkTheme={defaultDarkTheme}
       i18nProvider={i18nProvider}
       dataProvider={dataProvider}
       authProvider={authProvider}
