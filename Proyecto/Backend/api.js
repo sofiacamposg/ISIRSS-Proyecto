@@ -1427,20 +1427,29 @@ async function getMedicionesPorInfante(req, res) {
 
 app.get("/mediciones", async (req, res) => {
     try {
-        let token = req.get("Authentication");
-        // await jwt.verify(token, "admin123");
+        if (req.query.target === "id_infante") {
+            return await getMedicionesPorInfante(req, res);
+        }
 
         if ("target" in req.query) {
-            await getManyReference("mediciones", req, res);
-        } else if ("id" in req.query) {
-            await getMany("mediciones", req, res);
-        } else {
-            await getListMediciones("mediciones", req, res);
+            return await getManyReference("mediciones", req, res);
         }
+
+        if ("id" in req.query) {
+            return await getMany("mediciones", req, res);
+        }
+
+        // No modificar: otras pantallas usan esta consulta.
+        return await getListMediciones("mediciones", req, res);
 
     } catch (error) {
         console.error("Error en GET /mediciones:", error);
-        res.status(500).json({ error: error.message });
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                error: "Error al consultar las mediciones."
+            });
+        }
     }
 });
 

@@ -104,7 +104,7 @@ export function InfantesShow() {
         <BooleanField source="seguimientoActivo" label="Seguimiento activo" />
         <TextField source="restricciones_nutricionales" label="Restricciones alimentarias" />
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
-        <ReferenceManyField reference="mediciones" target="id_infante" label="Datos actuales" >
+        <ReferenceManyField reference="mediciones" target="id_infante" label="Historial de crecimiento" >
           <Datagrid bulkActionButtons={false}>
             <DateField source="fecha_medicion" label="Fecha" />
             <NumberField source="peso_kg" label="Peso (kg)" />
