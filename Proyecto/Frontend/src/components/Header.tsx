@@ -57,7 +57,7 @@ export default function Header() {
         <Box className="app-header-actions">
 
           {/* Cambiar entre modo claro y oscuro */}
-          <ToggleThemeButton />
+          {/*<ToggleThemeButton />*/}
 
           {/* Actualizar la página */}
           <IconButton

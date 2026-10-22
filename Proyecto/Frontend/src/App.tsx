@@ -115,6 +115,14 @@ const tema: ThemeOptions = {
         },
       },
     },
+    RaSkipNavigationButton: {
+      styleOverrides: {
+        root: {
+          backgroundColor: colores.guinda,
+          color: colores.blanco,
+        },
+      },
+    },
   },
 };
 

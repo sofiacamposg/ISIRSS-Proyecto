@@ -8,8 +8,8 @@ const estadosSeguimiento = [
 ];
 
 const seguimientosFilters = [
-    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" >
-        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes"/>
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" >
+        <SelectInput label="Infante" optionText="nombre_completo" emptyText="Todos los infantes"/>
     </ReferenceInput>,
     <DateInput key="fecha_apertura" source="fecha_apertura" label="Fecha de apertura" />,
     <TextInput key="motivo" source="motivo" label="Motivo" />,
@@ -38,13 +38,13 @@ export function SeguimientosCreate() {
   return (
     <Create title="Registrar seguimiento">
       <SimpleForm>
-        <ReferenceInput source="id_infante" reference="infantes" label="Infante">
-          <SelectInput optionText="nombre_completo" validate={required()} fullWidth />
+        <ReferenceInput source="id_infante" reference="infantes">
+          <SelectInput label="Infante" optionText="nombre_completo" validate={required()} fullWidth />
         </ReferenceInput>
         <FormDataConsumer>
           {({ formData }) => formData.id_infante ? (
-            <ReferenceInput source="id_condicion" reference="condiciones" label="Condición de salud" filter={{ id_infante: formData.id_infante }}>
-              <SelectInput optionText="descripcion" fullWidth/>
+            <ReferenceInput source="id_condicion" reference="condiciones" filter={{ id_infante: formData.id_infante }}>
+              <SelectInput label="Condición de salud" optionText="descripcion" fullWidth/>
             </ReferenceInput>
           ) : (
             <SelectInput source="id_condicion" label="Condición de salud" choices={[]} disabled fullWidth/>
@@ -88,13 +88,13 @@ export function SeguimientosEdit() {
   return (
     <Edit title="Editar seguimiento">
       <SimpleForm>
-        <ReferenceInput source="id_infante" reference="infantes" label="Infante">
-          <SelectInput optionText="nombre_completo" validate={required()} fullWidth />
+        <ReferenceInput source="id_infante" reference="infantes">
+          <SelectInput label="Infante" optionText="nombre_completo" validate={required()} fullWidth />
         </ReferenceInput>
         <FormDataConsumer>
           {({ formData }) => formData.id_infante ? (
-            <ReferenceInput source="id_condicion" reference="condiciones" label="Condición de salud" filter={{ id_infante: formData.id_infante }}>
-              <SelectInput optionText="descripcion" fullWidth/>
+            <ReferenceInput source="id_condicion" reference="condiciones" filter={{ id_infante: formData.id_infante }}>
+              <SelectInput label="Condición de salud" optionText="descripcion" fullWidth/>
             </ReferenceInput>
           ) : (
             <SelectInput source="id_condicion" label="Condición de salud" choices={[]} disabled fullWidth/>

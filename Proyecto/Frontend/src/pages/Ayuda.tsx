@@ -43,12 +43,7 @@ export default function Ayuda() {
 
       {/* Sección 1 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <LoginOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           1. Inicio de sesión
         </Typography>
@@ -71,12 +66,7 @@ export default function Ayuda() {
 
       {/* Sección 2 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <MenuOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           2. Navegación por la plataforma
         </Typography>
@@ -106,12 +96,7 @@ export default function Ayuda() {
 
       {/* Sección 3 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <ChildCareOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           3. Consulta de expedientes infantiles
         </Typography>
@@ -131,12 +116,7 @@ export default function Ayuda() {
 
       {/* Sección 4 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <StraightenOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           4. Mediciones antropométricas
         </Typography>
@@ -161,12 +141,7 @@ export default function Ayuda() {
 
       {/* Sección 5 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <ShowChartOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           5. Gráficas de crecimiento
         </Typography>
@@ -186,12 +161,7 @@ export default function Ayuda() {
 
       {/* Sección 6 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <AssignmentOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           6. Seguimiento nutricional
         </Typography>
@@ -213,12 +183,7 @@ export default function Ayuda() {
 
       {/* Sección 7 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <ManageAccountsOutlined sx={{ verticalAlign: "middle", mr: 1 }} />
           7. Permisos según el tipo de usuario
         </Typography>
@@ -269,12 +234,7 @@ export default function Ayuda() {
 
       {/* Sección 8 */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <WarningAmberOutlined
             sx={{ verticalAlign: "middle", mr: 1 }}
           />
@@ -319,12 +279,7 @@ export default function Ayuda() {
 
       {/* Sección 9 */}
       <Box>
-        <Typography
-          variant="h6"
-          fontWeight={700}
-          color="primary.main"
-          gutterBottom
-        >
+           <Typography variant="h6" component="h2" fontWeight={700} color="primary.main" gutterBottom>
           <SupportAgentOutlined
             sx={{ verticalAlign: "middle", mr: 1 }}
           />

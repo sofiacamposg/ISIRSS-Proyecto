@@ -55,6 +55,7 @@ export default function Login() {
       }}
     >
       <Paper
+      component="main"
         elevation={3}
         sx={{
           display: "flex",
