@@ -1,7 +1,9 @@
+
 import { useMemo, useState } from "react";
 import { useGetList } from "react-admin";
 import { Box, Card, CardContent, Typography, Grid, TextField, MenuItem, Button, Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper, CircularProgress,} from "@mui/material";
 
+// Datos que utilizan los reportes.
 type Infante = {
   id: number;
   nombre: string;
@@ -29,6 +31,7 @@ type Seguimiento = {
   estado: string;
 };
 
+// Comprueba si la fecha está dentro del periodo seleccionado.
 function fechaDentroDelRango(
   fecha: string,
   desde: string,
@@ -39,6 +42,7 @@ function fechaDentroDelRango(
   return true;
 }
 
+// Crea y descarga un archivo CSV con los registros filtrados.
 function exportarCSV(
   nombreArchivo: string,
   encabezados: string[],
@@ -58,6 +62,7 @@ function exportarCSV(
   URL.revokeObjectURL(url);
 }
 
+// Tarjeta reutilizable para mostrar una cantidad y su descripción.
 function TarjetaResumen({titulo, valor,descripcion,}: {
   titulo: string;
   valor: number;
@@ -79,292 +84,14 @@ function TarjetaResumen({titulo, valor,descripcion,}: {
     </Card>
   );
 }
+// Las fechas se guardan en formato ISO; solo cambiamos cómo se muestran.
+function formatearFecha(fecha: string) {
+  if (!fecha) return "—";
+  const [anio, mes, dia] = fecha.slice(0, 10).split("-");
+  return anio && mes && dia ? `${dia}/${mes}/${anio}` : fecha;
+}
+
+// Página principal de reportes.
 export const ReportesPage = () => {
+  // Filtros elegidos por el usuario.
   const [infanteSeleccionado, setInfanteSeleccionado] = useState("");
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
-  const {
-    data: infantes = [],
-    isPending: cargandoInfantes,
-    error: errorInfantes,
-  } = useGetList<Infante>("infantes", {
-    pagination: { page: 1, perPage: 1000 },
-    sort: { field: "nombre", order: "ASC" },
-  });
-  const {
-    data: mediciones = [],
-    isPending: cargandoMediciones,
-    error: errorMediciones,
-  } = useGetList<Medicion>("mediciones", {
-    pagination: { page: 1, perPage: 1000 },
-    sort: { field: "fecha", order: "DESC" },
-  });
-  const {
-    data: seguimientos = [],
-    isPending: cargandoSeguimientos,
-    error: errorSeguimientos,
-  } = useGetList<Seguimiento>("seguimientos", {
-    pagination: { page: 1, perPage: 1000 },
-    sort: { field: "fecha", order: "DESC" },
-  });
-  const cargando = cargandoInfantes || cargandoMediciones || cargandoSeguimientos;
-  const error = errorInfantes || errorMediciones || errorSeguimientos;
-  const medicionesFiltradas = useMemo(() => {
-    return mediciones.filter((medicion) => {
-      const coincideInfante = infanteSeleccionado === "" || String(medicion.infanteId) === infanteSeleccionado;
-      return (
-        coincideInfante &&
-        fechaDentroDelRango(medicion.fecha, fechaDesde, fechaHasta)
-      );
-    });
-  }, [mediciones, infanteSeleccionado, fechaDesde, fechaHasta]);
-  const seguimientosFiltrados = useMemo(() => {
-    return seguimientos.filter((seguimiento) => {
-      const coincideInfante = infanteSeleccionado === "" || String(seguimiento.infanteId) === infanteSeleccionado;
-      return (
-        coincideInfante &&
-        fechaDentroDelRango(seguimiento.fecha, fechaDesde, fechaHasta)
-      );
-    });
-  }, [seguimientos, infanteSeleccionado, fechaDesde, fechaHasta]);
-
-  const infantesConMediciones = useMemo(() => {
-    const ids = new Set(mediciones.map((medicion) => medicion.infanteId));
-    return ids.size;
-  }, [mediciones]);
-
-  const alertasPendientes = useMemo(() => {
-    return infantes.filter((infante) => infante.estadoSeguimiento !== "Al día").length;
-  }, [infantes]);
-
-  const conteoEstados = useMemo(() => {
-    return seguimientosFiltrados.reduce<Record<string, number>>(
-      (conteo, seguimiento) => {
-        conteo[seguimiento.estado] = (conteo[seguimiento.estado] || 0) + 1;
-        return conteo;
-      },
-      {}
-    );
-  }, [seguimientosFiltrados]);
-
-  const nombreInfante = (id: number) => infantes.find((infante) => infante.id === id)?.nombre ?? `Infante ${id}`;
-  const limpiarFiltros = () => {
-    setInfanteSeleccionado("");
-    setFechaDesde("");
-    setFechaHasta("");
-  };
-  if (cargando) {
-    return (
-      <Box sx={{ p: 4, display: "flex", gap: 2 }}>
-        <CircularProgress size={24} />
-        <Typography>Cargando reportes...</Typography>
-      </Box>
-    );
-  }
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography color="error">
-          No fue posible cargar los reportes. Verifica el dataProvider.
-        </Typography>
-      </Box>
-    );
-  }
-  return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h4" sx={{ mb: 1 }}>
-        Reportes
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Resumen de infantes, mediciones y seguimientos registrados.
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TarjetaResumen titulo="Infantes registrados" valor={infantes.length} descripcion="Total de expedientes" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TarjetaResumen titulo="Con mediciones" valor={infantesConMediciones} descripcion="Infantes con al menos un registro" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TarjetaResumen titulo="Mediciones registradas" valor={mediciones.length} descripcion="Total histórico" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TarjetaResumen titulo="Infantes con alertas" valor={alertasPendientes} descripcion="Sin mediciones o con medición pendiente" />
-        </Grid>
-      </Grid>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Filtros del reporte
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <TextField select fullWidth label="Infante" value={infanteSeleccionado} onChange={(event) => setInfanteSeleccionado(event.target.value)} >
-            <MenuItem value="">Todos los infantes</MenuItem>
-            {infantes.map((infante) => (
-              <MenuItem key={infante.id} value={String(infante.id)}>
-                {infante.nombre}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
-          <TextField fullWidth type="date" label="Desde" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
-          <TextField fullWidth type="date" label="Hasta" value={fechaHasta} onChange={(event) => setFechaHasta(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 2 }}>
-          <Button fullWidth variant="outlined" onClick={limpiarFiltros} sx={{ height: "56px" }} >
-            Limpiar
-          </Button>
-        </Grid>
-      </Grid>
-      {fechaDesde && fechaHasta && fechaDesde > fechaHasta && (
-        <Typography color="error" sx={{ mb: 2 }}>
-          La fecha inicial no puede ser posterior a la fecha final.
-        </Typography>
-      )}
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 4 }}>
-        <Button variant="contained" disabled={
-            Boolean(fechaDesde && fechaHasta && fechaDesde > fechaHasta)
-          }
-          onClick={() => exportarCSV(
-              "reporte_mediciones.csv",
-              [
-                "Infante",
-                "Fecha",
-                "Peso (kg)",
-                "Talla (cm)",
-                "Perímetro cefálico (cm)",
-                "Observaciones",
-              ],
-              medicionesFiltradas.map((medicion) => [
-                nombreInfante(medicion.infanteId),
-                medicion.fecha,
-                medicion.pesoKg,
-                medicion.tallaCm,
-                medicion.perimetroCefalicoCm ?? "",
-                medicion.observaciones ?? "",
-              ])
-            )
-          }
-        >
-          Exportar mediciones CSV
-        </Button>
-        <Button variant="outlined" disabled={
-            Boolean(fechaDesde && fechaHasta && fechaDesde > fechaHasta)
-          }
-          onClick={() => exportarCSV(
-              "reporte_seguimientos.csv",
-              [
-                "Infante",
-                "Fecha",
-                "Motivo",
-                "Responsable",
-                "Estado",
-              ],
-              seguimientosFiltrados.map((seguimiento) => [
-                nombreInfante(seguimiento.infanteId),
-                seguimiento.fecha,
-                seguimiento.motivo,
-                seguimiento.responsable,
-                seguimiento.estado,
-              ])
-            )
-          }
-        >
-          Exportar seguimientos CSV
-        </Button>
-      </Box>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Resumen de seguimientos
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        {[
-          "Sin seguimiento",
-          "Requiere seguimiento",
-          "En seguimiento",
-          "Seguimiento concluido",
-        ].map((estado) => (
-          <Grid key={estado} size={{ xs: 12, sm: 6, md: 3 }}>
-            <TarjetaResumen
-              titulo={estado}
-              valor={conteoEstados[estado] || 0}
-              descripcion="Casos en el filtro actual"
-            />
-          </Grid>
-        ))}
-      </Grid>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Mediciones ({medicionesFiltradas.length})
-      </Typography>
-      <TableContainer component={Paper} variant="outlined" sx={{ mb: 4 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Infante</TableCell>
-              <TableCell>Fecha</TableCell>
-              <TableCell align="right">Peso (kg)</TableCell>
-              <TableCell align="right">Talla (cm)</TableCell>
-              <TableCell align="right">Perímetro cefálico (cm)</TableCell>
-              <TableCell>Observaciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {medicionesFiltradas.map((medicion) => (
-              <TableRow key={medicion.id}>
-                <TableCell>{nombreInfante(medicion.infanteId)}</TableCell>
-                <TableCell>{medicion.fecha}</TableCell>
-                <TableCell align="right">{medicion.pesoKg}</TableCell>
-                <TableCell align="right">{medicion.tallaCm}</TableCell>
-                <TableCell align="right">{medicion.perimetroCefalicoCm ?? "—"}</TableCell>
-                <TableCell>{medicion.observaciones || "—"}</TableCell>
-              </TableRow>
-            ))}
-            {medicionesFiltradas.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} align="center">
-                  No hay mediciones para los filtros seleccionados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Seguimientos ({seguimientosFiltrados.length})
-      </Typography>
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Infante</TableCell>
-              <TableCell>Fecha</TableCell>
-              <TableCell>Motivo</TableCell>
-              <TableCell>Responsable</TableCell>
-              <TableCell>Estado</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {seguimientosFiltrados.map((seguimiento) => (
-              <TableRow key={seguimiento.id}>
-                <TableCell>{nombreInfante(seguimiento.infanteId)}</TableCell>
-                <TableCell>{seguimiento.fecha}</TableCell>
-                <TableCell>{seguimiento.motivo}</TableCell>
-                <TableCell>{seguimiento.responsable}</TableCell>
-                <TableCell>{seguimiento.estado}</TableCell>
-              </TableRow>
-            ))}
-
-            {seguimientosFiltrados.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center">
-                  No hay seguimientos para los filtros seleccionados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
-  );
-};

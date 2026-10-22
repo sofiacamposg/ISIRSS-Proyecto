@@ -1,5 +1,6 @@
 import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer} from "react-admin";
 
+// Opciones de estado utilizadas en los formularios.
 const estadosSeguimiento = [
     { id: "requiere_seguimiento", name: "Requiere seguimiento" },
     { id: "en_seguimiento", name: "En seguimiento" },
@@ -51,17 +52,16 @@ export function SeguimientosCreate() {
         </FormDataConsumer>
         <DateInput source="fecha_apertura" label="Fecha de apertura" validate={required()}/>
         <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} multiline fullWidth/>
-        <SelectInput source="estado" label="Estado del seguimiento"
-          choices={[
-            {
-              id: "requiere_seguimiento",
-              name: "Requiere seguimiento"
-            },
-            {
-              id: "en_seguimiento",
-              name: "En seguimiento"
-            }
-          ]} defaultValue="requiere_seguimiento" validate={required()} fullWidth/>
+        <SelectInput
+          source="estado"
+          label="Estado del seguimiento"
+          choices={estadosSeguimiento.filter(
+            (estado) => estado.id !== "concluido"
+          )}
+          defaultValue="requiere_seguimiento"
+          validate={required()}
+          fullWidth
+        />
       </SimpleForm>
     </Create>
   );
@@ -102,22 +102,13 @@ export function SeguimientosEdit() {
         </FormDataConsumer>
         <DateInput source="fecha_apertura" label="Fecha de apertura" validate={required()}/>
         <TextInput source="motivo" label="Motivo del seguimiento" validate={required()} multiline fullWidth/>
-        <SelectInput source="estado" label="Estado del seguimiento"
-          choices={[
-            {
-              id: "requiere_seguimiento",
-              name: "Requiere seguimiento"
-            },
-            {
-              id: "en_seguimiento",
-              name: "En seguimiento"
-            },
-            {
-              id: "concluido",
-              name: "Concluido"
-            }
-          ]} validate={required()} fullWidth/>
-
+        <SelectInput
+          source="estado"
+          label="Estado del seguimiento"
+          choices={estadosSeguimiento}
+          validate={required()}
+          fullWidth
+        />
         <FormDataConsumer>
           {({ formData }) =>
             formData.estado === "concluido" ? (

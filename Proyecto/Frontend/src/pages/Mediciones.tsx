@@ -1,5 +1,22 @@
 import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, FormDataConsumer, FunctionField, ReferenceInput, SelectInput, NumberInput, DateInput, TextInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
 
+// Impide registrar mediciones con fechas futuras.
+const validarFechaMedicion = (value: string) => {
+  if (!value) return undefined;
+
+  const hoy = new Date();
+  const fechaActual = [
+    hoy.getFullYear(),
+    String(hoy.getMonth() + 1).padStart(2, "0"),
+    String(hoy.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  if (value > fechaActual) {
+    return "La fecha de medición no puede ser futura";
+  }
+
+  return undefined;
+};
 export function MedicionesList() {
   return (
     <List title="Mediciones de crecimiento">
@@ -11,7 +28,7 @@ export function MedicionesList() {
         <DateField source="fecha_medicion" label="Fecha" />
         <NumberField source="peso_kg" label="Peso (kg)" />
         <NumberField source="talla_cm" label="Talla (cm)" />
-        <NumberField source="perimetro_cefalico_cm" label="Perimetro cefálico (cm)" />
+        <NumberField source="perimetro_cefalico_cm" label="Perímetro cefálico (cm)" />
         <TextField source="observaciones" label="Observaciones" />
         <ShowButton label="Ver mediciones" />
         <EditButton label="Editar" />
@@ -30,10 +47,28 @@ export function MedicionesCreate() {
         <ReferenceInput source="id_ebdi_captura" reference="ebdis" label="EBDI donde se captura">
           <SelectInput optionText="nombre_ebdi" validate={required()} fullWidth/>
         </ReferenceInput>
-        <DateInput source="fecha_medicion" label="Fecha de medición" validate={required()} />
-        <NumberInput source="peso_kg" label="Peso (kg)" min={0.001} step={0.001} validate={required()} />
-        <NumberInput source="talla_cm" label="Talla (cm)" min={0.01} step={0.01} validate={required()} />
-        <SelectInput source="tipo_talla" label="Tipo de talla" 
+        <DateInput
+          source="fecha_medicion"
+          label="Fecha de medición"
+          validate={[required(), validarFechaMedicion]}
+        />
+        <NumberInput
+          source="peso_kg"
+          label="Peso (kg)"
+          helperText="En kilogramos, ej. 7.850"
+          min={0.001}
+          step={0.001}
+          validate={required()}
+        />
+        <NumberInput
+          source="talla_cm"
+          label="Talla (cm)"
+          helperText="En centímetros, ej. 68.5"
+          min={0.01}
+          step={0.01}
+          validate={required()}
+        />
+        <SelectInput source="tipo_talla" label="Tipo de talla" helperText="Acostado: menores de 2 años. De pie: 2 años o más."
           choices={[
             {
               id: "longitud_acostado",
@@ -44,7 +79,13 @@ export function MedicionesCreate() {
               name: "Talla de pie",
             },
           ]} validate={required()}/>
-        <NumberInput source="perimetro_cefalico_cm" label="Perimetro cefálico (cm)" min={0.01} step={0.01} />
+        <NumberInput
+          source="perimetro_cefalico_cm"
+          label="Perímetro cefálico (cm)"
+          helperText="En centímetros, ej. 45.2"
+          min={0.01}
+          step={0.01}
+        />
         <SelectInput source="tipo" label="Tipo de medición"
           choices={[
             { 
@@ -84,7 +125,7 @@ export function MedicionesShow() {
         <DateField source="fecha_medicion" label="Fecha de medición" />
         <NumberField source="peso_kg" label="Peso (kg)" />
         <NumberField source="talla_cm" label="Talla (cm)" />
-        <NumberField source="perimetro_cefalico_cm" label="Perimetro cefálico (cm)" />
+        <NumberField source="perimetro_cefalico_cm" label="Perímetro cefálico (cm)" />
         <TextField source="observaciones" label="Observaciones" />
       </SimpleShowLayout>
     </Show>
@@ -95,10 +136,28 @@ export function MedicionesEdit() {
   return (
     <Edit title="Corregir medición">
       <SimpleForm>
-        <DateInput source="fecha_medicion" label="Fecha de medición" validate={required()}/>
-        <NumberInput source="peso_kg" label="Peso (kg)" min={0.001} step={0.001} validate={required()}/>
-        <NumberInput source="talla_cm" label="Talla (cm)" min={0.01} step={0.01} validate={required()}/>
-        <SelectInput source="tipo_talla" label="Tipo de talla" 
+        <DateInput
+          source="fecha_medicion"
+          label="Fecha de medición"
+          validate={[required(), validarFechaMedicion]}
+        />
+        <NumberInput
+          source="peso_kg"
+          label="Peso (kg)"
+          helperText="En kilogramos, ej. 7.850"
+          min={0.001}
+          step={0.001}
+          validate={required()}
+        />
+        <NumberInput
+          source="talla_cm"
+          label="Talla (cm)"
+          helperText="En centímetros, ej. 68.5"
+          min={0.01}
+          step={0.01}
+          validate={required()}
+        />
+        <SelectInput source="tipo_talla" label="Tipo de talla" helperText="Acostado: menores de 2 años. De pie: 2 años o más."
           choices={[
             {
               id: "longitud_acostado",
@@ -109,7 +168,13 @@ export function MedicionesEdit() {
               name: "Talla de pie"
             }
           ]} validate={required()}/>
-        <NumberInput source="perimetro_cefalico_cm" label="Perímetro cefálico (cm)" min={0.01} step={0.01}/>
+        <NumberInput
+          source="perimetro_cefalico_cm"
+          label="Perímetro cefálico (cm)"
+          helperText="En centímetros, ej. 45.2"
+          min={0.01}
+          step={0.01}
+        />
         <SelectInput source="tipo" label="Tipo de medición"
           choices={[
             {

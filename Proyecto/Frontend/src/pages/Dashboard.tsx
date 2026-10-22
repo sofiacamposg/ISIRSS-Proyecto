@@ -1,160 +1,173 @@
-import StatCard from "../components/Statcard";
+import { Box, Typography, Card, CardContent, Grid, Button, Stack } from "@mui/material";
+import { Title, useGetList, usePermissions, ListBase, Datagrid, TextField, DateField, ShowButton, SelectField } from "react-admin";
+import type { ReactNode } from "react";
+import { AddOutlined, StraightenOutlined, ShowChartOutlined, DescriptionOutlined } from "@mui/icons-material";
+import { Link as RouterLink } from "react-router-dom";
 
-function Dashboard() {
-  console.log("MI DASHBOARD SE ESTA RENDERIZANDO");
+// tarjeta con números
+function TarjetaResumen({ titulo, valor, descripcion }: { titulo: string; valor: ReactNode; descripcion: string }) {
   return (
-    <div className="dashboard">
-
-      <div className="welcome">
-
-        <div>
-          <span className="eyebrow">
-            SISTEMA DE CONTROL INFANTIL
-          </span>
-
-          <h1>
-            Bienvenido al sistema
-            <span className="sr-only"> (texto de prueba oculto)</span>
-          </h1>
-
-          <p>
-            Consulta y seguimiento de la información del padrón infantil.
-          </p>
-        </div>
-
-        <div className="date">
-          <span>Periodo actual</span>
-          <strong>Septiembre 2026</strong>
-        </div>
-
-      </div>
-
-
-      <section className="stats-grid">
-
-        <StatCard
-          title="Infantes registrados"
-          value="1,248"
-          description="En el padrón actual"
-        />
-
-        <StatCard
-          title="Mediciones"
-          value="3,842"
-          description="Registros realizados"
-        />
-
-        <StatCard
-          title="En seguimiento"
-          value="37"
-          description="Casos activos"
-          type="warning"
-        />
-
-        <StatCard
-          title="Alertas pendientes"
-          value="14"
-          description="Requieren revisión"
-          type="danger"
-        />
-
-      </section>
-
-
-      <section className="dashboard-grid">
-
-        <div className="panel">
-
-          <div className="panel-header">
-
-            <div>
-              <span className="eyebrow">
-                PADRÓN
-              </span>
-
-              <h3>
-                Infantes recientes
-              </h3>
-            </div>
-
-            <button className="secondary-button">
-              Ver todos
-            </button>
-
-          </div>
-
-
-          <div className="table-container">
-
-            <table>
-
-              <thead>
-                <tr>
-                  <th>Matrícula</th>
-                  <th>Infante</th>
-                  <th>EBDI</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-
-              <tbody>
-
-                <tr>
-                  <td>INF-00124</td>
-                  <td>María Fernanda López</td>
-                  <td>EBDI 012</td>
-                  <td>
-                    <span className="status active-status">
-                      Activo
-                    </span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>INF-00125</td>
-                  <td>Santiago Hernández</td>
-                  <td>EBDI 008</td>
-                  <td>
-                    <span className="status active-status">
-                      Activo
-                    </span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>INF-00126</td>
-                  <td>Valentina García</td>
-                  <td>EBDI 015</td>
-                  <td>
-                    <span className="status follow-status">
-                      Seguimiento
-                    </span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>INF-00127</td>
-                  <td>Mateo Ramírez</td>
-                  <td>EBDI 004</td>
-                  <td>
-                    <span className="status active-status">
-                      Activo
-                    </span>
-                  </td>
-                </tr>
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-        </div>
-
-      </section>
-
-    </div>
+    <Card variant="outlined" sx={{ height: "100%" }}>
+      <CardContent>
+        <Typography variant="subtitle1" component="h3" color="text.secondary">
+          {titulo}
+        </Typography>
+        <Typography variant="h4" component="p" sx={{ fontWeight: 700, my: 1 }}>
+          {valor}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {descripcion}
+        </Typography>
+      </CardContent>
+    </Card>
   );
 }
+
+const useTotal = (recurso: string) => {
+  const { total, isPending, error } = useGetList(recurso, {
+    pagination: { page: 1, perPage: 1 }, // solo pedimos 1 registro por que nos interesa el total, no la lista
+  });
+
+  if (isPending) {
+    return "Cargando…";
+  }
+  if (error || total === undefined) {
+    return "No disponible";
+  }
+  return total.toLocaleString("es-MX"); // agrega comita
+};
+
+const Dashboard = () => {
+  const { permissions } = usePermissions();
+  const esTutor = permissions === "tutor"; // el tutor no debe ver totales de todo el padrón
+  const puedeRegistrar = permissions === "administrador" || permissions === "estancia";
+  const totalInfantes = useTotal("infantes");
+  const totalMediciones = useTotal("mediciones");
+  const totalSeguimientos = useTotal("seguimientos");
+  const totalAlertas = useTotal("alertas");
+
+  return (
+    <Box sx={{ pb: 4 }}>
+      <Title title="Inicio" />
+
+      {/* descripción corta de la página */}
+      <Typography color="text.secondary" sx={{ mb: 3 }}>
+        Resumen del padrón infantil. Revisa las alertas y registra las mediciones pendientes.
+      </Typography>
+
+      {/* resumen (no visible para tutores) */}
+      {!esTutor && (
+        <Box component="section" aria-labelledby="titulo-resumen" sx={{ mb: 4 }}>
+          <Typography id="titulo-resumen" variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
+            Resumen del padrón
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TarjetaResumen titulo="Infantes registrados" valor={totalInfantes} descripcion="Expedientes en el padrón." />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TarjetaResumen titulo="Mediciones" valor={totalMediciones} descripcion="Registros de peso, talla y perímetro cefálico." />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TarjetaResumen titulo="Seguimientos nutricionales" valor={totalSeguimientos} descripcion="Casos registrados." />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TarjetaResumen titulo="Alertas" valor={totalAlertas} descripcion="Alertas registradas que requieren revisión." />
+            </Grid>
+          </Grid>
+        </Box>
+      )}
+
+      {/* acciones rápidas */}
+      <Box component="section" aria-labelledby="titulo-acciones" sx={{ mb: 4 }}>
+        <Typography id="titulo-acciones" variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
+          Acciones rápidas
+        </Typography>
+
+        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5 }}>
+          {puedeRegistrar && (
+            <Button component={RouterLink} to="/mediciones/create" variant="contained" startIcon={<StraightenOutlined />}>
+              Registrar medición
+            </Button>
+          )}
+          {puedeRegistrar && (
+            <Button component={RouterLink} to="/infantes/create" variant="contained" startIcon={<AddOutlined />}>
+              Registrar infante
+            </Button>
+          )}
+          <Button component={RouterLink} to="/crecimiento" variant="outlined" startIcon={<ShowChartOutlined />}>
+            Consultar gráficas de crecimiento
+          </Button>
+          {!esTutor && (
+            <Button component={RouterLink} to="/reportes" variant="outlined" startIcon={<DescriptionOutlined />}>
+              Ver reportes
+            </Button>
+          )}
+        </Stack>
+      </Box>
+      {/* infantes registrados recientemente (no visible para tutores) */}
+      {!esTutor && (
+        <Box component="section" aria-labelledby="titulo-recientes" sx={{ mb: 4 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
+            <Typography id="titulo-recientes" variant="h5" component="h2" sx={{ fontWeight: 700 }}>
+              Infantes registrados recientemente
+            </Typography>
+            <Button component={RouterLink} to="/infantes">
+              Ver todos los infantes
+            </Button>
+          </Stack>
+
+          <Card variant="outlined">
+            <ListBase resource="infantes" perPage={5} sort={{ field: "id", order: "DESC" }} disableSyncWithLocation>
+              <Datagrid bulkActionButtons={false} rowClick={false}>
+                <TextField source="matricula" label="Matrícula" />
+                <TextField source="nombre_completo" label="Nombre completo" />
+                <DateField source="fecha_medicion" label="Última medición" emptyText="Sin medición" />
+                <SelectField source="estado" label="Estado de seguimiento" emptyText="Sin seguimiento"
+                  choices={[
+                    { id: "requiere_seguimiento", name: "Requiere seguimiento" },
+                    { id: "en_seguimiento", name: "En seguimiento" },
+                    { id: "concluido", name: "Seguimiento concluido" },
+                  ]}
+                />
+                <ShowButton label="Ver ficha" />
+              </Datagrid>
+            </ListBase>
+          </Card>
+        </Box>
+      )}
+      <Box component="section" aria-labelledby="titulo-glosario" sx={{ mb: 4 }}>
+        <Typography id="titulo-glosario" variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
+          Términos de la plataforma
+        </Typography>
+
+        <Card variant="outlined">
+          <CardContent>
+            <Box component="dl" sx={{ m: 0, display: "grid", gap: 2 }}>
+              <Box>
+                <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >EBDI</Typography>
+                <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                </Typography>
+              </Box>
+              <Box>
+                <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >IMC</Typography>
+                <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                </Typography>
+              </Box>
+              <Box>
+                <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >CDC</Typography>
+                <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
+  );
+};
 
 export default Dashboard;
