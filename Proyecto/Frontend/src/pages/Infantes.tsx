@@ -41,7 +41,6 @@ export function InfantesList() {
         </ReferenceField>
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
         <DateField source="fecha_medicion" label="Última medición" emptyText="Sin registro" />
-        {/* <FunctionField label="Días transcurridos" render={(record) => record.diasDesdeUltimaMedicion ?? "__"} /> */}
         <SelectField source="estado" label="Estado de seguimiento" choices={estadosSeguimiento} emptyText="Sin seguimiento" />
         <EditButton label="Editar" />
         <ShowButton label="Ver ficha" />
@@ -60,6 +59,7 @@ export function InfantesCreate() {
         <TextInput source="apellido_materno" label="Apellido materno"/>
         {/*Valida fecha de ingreso*/}
         <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
+<<<<<<< Updated upstream
         <SelectInput source="sexo_patron" label="Sexo" choices={opcionesSexo} validate={required()} />
         <TextInput
           source="curp"
@@ -78,19 +78,26 @@ export function InfantesCreate() {
             validate={required()}
             fullWidth
           />
+=======
+        <SelectInput source="sexo_patron" label="Sexo"
+          choices={[
+            { id: "Femenino", name: "Femenino" },
+            { id: "Masculino", name: "Masculino" },
+          ]}
+          validate={required()}
+        />
+        <TextInput source="curp" label="CURP" helperText="Clave Única de Registro de Población. 18 caracteres, ej. LOMF240310MDFPRR09" fullWidth />
+        <ReferenceInput source="id_ebdi" reference="ebdis" >
+          <SelectInput label="EBDI" optionText="nombre_ebdi" helperText="Estancia para el Bienestar y Desarrollo Infantil." validate={required()} fullWidth />
+>>>>>>> Stashed changes
         </ReferenceInput>
 
         {/*Valida fecha de ingreso*/}
-        <DateInput source="fecha_ingreso" label="Fecha de ingreso" validate={validarFechaIngreso}/>
+        <DateInput source="fecha_ingreso" label="Fecha de ingreso" validate={[required(), validarFechaIngreso]}/>
         <SelectInput source="activo" label="Expediente" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} />
 
-        {/* <SelectInput source="seguimientoActivo" label="Seguimiento de crecimiento" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} /> */}
-        <TextInput
-          source="restricciones_nutricionales"
-          label="Restricciones alimentarias"
-          helperText="Ej. alergia a la leche. Déjalo vacío si no tiene."
-          fullWidth
-        />
+        <SelectInput source="seguimientoActivo" label="Seguimiento de crecimiento" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} />
+        <TextInput source="restricciones_nutricionales" label="Restricciones alimentarias" helperText="Ej. alergia a la leche. Déjalo vacío si no tiene." fullWidth />
         <ReferenceInput source="id_tutor" reference="tutores" label="Padre, madre o tutor">
           <SelectInput optionText="nombre_tutor" validate={required()}/>
         </ReferenceInput>
@@ -121,19 +128,18 @@ export function InfantesShow() {
         </ReferenceField>
         <DateField source="fecha_ingreso" label="Fecha de ingreso" />
         <BooleanField source="activo" label="Expediente activo" />
-        {/* <BooleanField source="seguimientoActivo" label="Seguimiento activo" /> */}
+        <BooleanField source="seguimientoActivo" label="Seguimiento activo" />
         <TextField source="restricciones_nutricionales" label="Restricciones alimentarias" />
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
-        {/* <ReferenceManyField reference="mediciones" target="infanteId" label="Historial de crecimiento" sort={{ field: "fecha", order: "DESC" }} perPage={100} >
+        <ReferenceManyField reference="mediciones" target="id_infante" label="Datos actuales" >
           <Datagrid bulkActionButtons={false}>
-            <DateField source="fecha" label="Fecha" />
-            <FunctionField label="Edad en la medición" render={(record) => record.edadEnMedicion} />
-            <NumberField source="pesoKg" label="Peso (kg)" />
-            <NumberField source="tallaCm" label="Talla (cm)" />
-            <NumberField source="perimetroCefalicoCm" label="Perímetro cefálico (cm)" />
+            <DateField source="fecha_medicion" label="Fecha" />
+            <NumberField source="peso_kg" label="Peso (kg)" />
+            <NumberField source="talla_cm" label="Talla (cm)" />
+            <NumberField source="perimetro_cefalico_cm" label="Perímetro cefálico (cm)" />
             <TextField source="observaciones" label="Observaciones" />
           </Datagrid>
-        </ReferenceManyField> */}
+        </ReferenceManyField>
       </SimpleShowLayout>
     </Show>
   );

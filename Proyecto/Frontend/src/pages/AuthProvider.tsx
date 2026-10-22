@@ -1,5 +1,5 @@
 import type { AuthProvider } from "react-admin";
-const API_URL = "http://localhost:3000";
+const API_URL = "https://localhost:3000";
 const clavesSesion = [
     "username",
     "userRole",
@@ -96,9 +96,7 @@ export const authProvider: AuthProvider = {
                 tutores: ["list", "show"],
                 infantes: ["list", "show"],
                 mediciones: ["list", "show"],
-                condiciones: ["list", "show"],
                 seguimientos: ["list", "show"],
-                acciones_seguimiento: ["list", "show"],
                 crecimiento: ["list", "show"],
                 alertas: ["list", "show"],
                 reportes: ["list", "show", "export"],
@@ -110,9 +108,7 @@ export const authProvider: AuthProvider = {
                 tutores: ["list", "show"],
                 infantes: ["list", "show", "create", "edit"],
                 mediciones: ["list", "show", "create", "edit"],
-                condiciones: ["list", "show", "create", "edit"],
                 seguimientos: ["list", "show", "create", "edit"],
-                acciones_seguimiento: ["list", "show"],
                 crecimiento: ["list", "show"],
                 alertas: ["list", "show"],
                 reportes: ["list", "show", "export"],
@@ -120,9 +116,7 @@ export const authProvider: AuthProvider = {
             tutor: {
                 infantes: ["list", "show"],
                 mediciones: ["list", "show"],
-                condiciones: ["list", "show", "create", "edit"],
                 seguimientos: ["list", "show"],
-                acciones_seguimiento: ["list", "show", "create", "edit"],
                 crecimiento: ["list", "show"],
             },
         };
