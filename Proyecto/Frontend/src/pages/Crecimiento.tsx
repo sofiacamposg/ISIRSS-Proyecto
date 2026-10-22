@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetList, useGetManyReference } from "react-admin";
+import { useGetList, useGetManyReference, Title } from "react-admin";
 import { Box, FormControl, InputLabel, MenuItem, Select, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,} from "@mui/material";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, } from "recharts";
 
@@ -41,16 +41,22 @@ export function CrecimientoPage() {
   }, {
     enabled: infanteId !== "",
   });
-  if (cargandoInfantes || (infanteId !== "" && cargandoMediciones)) {
-      return <Typography>Cargando información...</Typography>;
+
+  if (cargandoInfantes) {
+      return <Typography role="status">Cargando información...</Typography>;
   }
-  if (errorInfantes || (infanteId !== "" && errorMediciones)) {
+  if (errorInfantes) {
       return (
-          <Typography color="error">
-              No fue posible cargar los datos de crecimiento.
+          <Typography role="alert" color="error">
+            No fue posible cargar los datos de crecimiento. Recarga la página o intenta más tarde.
           </Typography>
       );
   }
+  // IA -- Propuesto con apoyo de IA (Claude)
+  // La carga de mediciones ya no reemplaza la página, el selector se queda y no pierde el foco
+  const cargandoSeleccion = infanteId !== "" && cargandoMediciones;
+  const errorSeleccion = infanteId !== "" && errorMediciones;
+  
   const medicionesInfante = [...mediciones].sort(
     (a, b) =>
       new Date(a.fecha_medicion).getTime() -
@@ -84,11 +90,13 @@ export function CrecimientoPage() {
           : null,
     };
   });
-
+  
+  /*
   console.log("Infante seleccionado:", infanteId);
   console.log("Mediciones recibidas:", mediciones);
   console.log("Cantidad de mediciones:", mediciones.length);
   console.log("Datos de las gráficas:", datosGrafica);
+  */
 
   function GraficaLinea({titulo, campo, unidad,}: {
     titulo: string;
@@ -96,9 +104,18 @@ export function CrecimientoPage() {
     unidad: string;
   }) {
     const datos = datosGrafica.filter((m) => m[campo] != null);
+
+    // resumen de texto para lectores de pantalla, indica primera y última medicion
+    let resumen = "";
+    if (datos.length > 0) {
+      const primera = datos[0];
+      const ultima = datos[datos.length - 1];
+      resumen = `${titulo}: ${datos.length} mediciones, de ${primera[campo]} ${unidad} el ${primera.fechaCorta} a ${ultima[campo]} ${unidad} el ${ultima.fechaCorta}.`;
+    }
+    const idTitulo = `titulo-grafica-${campo}`; // id para conectar sección con su título
     return (
-      <Paper sx={{ p: 2, minWidth: 0 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper component="section" aria-labelledby= {idTitulo} sx={{ p: 2, minWidth: 0 }}>
+        <Typography id={idTitulo} variant="h6" component="h2" gutterBottom>
           {titulo}
         </Typography>
         {datos.length === 0 ? (
@@ -106,9 +123,10 @@ export function CrecimientoPage() {
             No hay mediciones disponibles para esta gráfica.
           </Typography>
         ) : (
-          <Box sx={{ width: "100%", height: 280 }}>
+
+          <Box role="img" aria-label={resumen} sx={{ width: "100%", height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={datos}>
+              <LineChart data={datos} accessibilityLayer={false}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="fechaCorta" />
                 <YAxis />
@@ -118,7 +136,7 @@ export function CrecimientoPage() {
                     titulo,
                   ]}
                 />
-                <Line type="monotone" dataKey={campo} name={titulo} stroke="#1976d2" strokeWidth={2} dot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey={campo} name={titulo} stroke="#9b2247" strokeWidth={2} dot={{ r: 4 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
           </Box>
@@ -128,10 +146,8 @@ export function CrecimientoPage() {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Crecimiento infantil
-      </Typography>
+    <Box sx={{ pb: 4 }}>
+      <Title title="Gráficas de crecimiento"/>
       <Typography sx={{ mb: 3 }} color="text.secondary">
         Consulta la evolución de las mediciones registradas para cada infante.
       </Typography>
@@ -151,7 +167,16 @@ export function CrecimientoPage() {
           ))}
         </Select>
       </FormControl>
-      {infanteId === "" ? (
+      {cargandoSeleccion && (
+        <Typography role="status" sx={{ mb: 3}}>Cargando mediciones...</Typography>
+      )}
+      {errorSeleccion && (
+        <Typography role="alert" color="error" sx={{ mb: 3 }}>
+          No fue posible cargar las mediciones. Intenta de nuevo.
+        </Typography>
+      )}
+      
+      {!cargandoSeleccion && !errorSeleccion && (infanteId === "" ? (
         <Typography>
           Selecciona un infante para consultar sus gráficas.
         </Typography>
@@ -168,8 +193,8 @@ export function CrecimientoPage() {
                 <GraficaLinea titulo="Evolución de la talla" campo="tallaCm" unidad="cm" />
                 <GraficaLinea titulo="Evolución del perímetro cefálico" campo="perimetroCefalicoCm" unidad="cm" />
               </Box>
-              <Typography variant="h5" sx={{ mb: 2 }}>
-                Historial de IMC
+              <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+                Historial de mediciones
               </Typography>
               <TableContainer component={Paper}>
                 <Table>
@@ -181,6 +206,9 @@ export function CrecimientoPage() {
                       </TableCell>
                       <TableCell align="right">
                         Talla (cm)
+                      </TableCell>
+                      <TableCell align="right">
+                        Perímetro cefálico (cm)
                       </TableCell>
                       <TableCell align="right">
                         IMC (kg/m²)
@@ -199,6 +227,9 @@ export function CrecimientoPage() {
                           {m.tallaCm.toFixed(1)}
                         </TableCell>
                         <TableCell align="right">
+                          {m.perimetroCefalicoCm == null ? "Sin registro" : m.perimetroCefalicoCm.toFixed(1)}
+                        </TableCell>
+                        <TableCell align="right">
                           {m.imc == null ? "No disponible" : m.imc.toFixed(2)}
                         </TableCell>
                       </TableRow>
@@ -213,7 +244,7 @@ export function CrecimientoPage() {
             </>
           )}
         </>
-      )}
+      ))}
     </Box>
   );
 }

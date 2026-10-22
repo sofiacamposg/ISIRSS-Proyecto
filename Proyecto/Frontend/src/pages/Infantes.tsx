@@ -34,7 +34,7 @@ export function InfantesList() {
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
         <SelectField source="sexo_patron" label="Sexo" choices={opcionesSexo} />
-        <TextField source="nombre_ebdi"/>
+        <TextField source="nombre_ebdi" label="EBDI"/>
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
         <DateField source="fecha_medicion" label="Última medición" emptyText="Sin registro" />
         <SelectField source="estado" label="Estado de seguimiento" choices={estadosSeguimiento} emptyText="Sin seguimiento" />
@@ -67,8 +67,8 @@ export function InfantesCreate() {
 
         <SelectInput source="seguimientoActivo" label="Seguimiento de crecimiento" choices={[{ id: true, name: "Activo" }, { id: false, name: "Inactivo" }]} defaultValue={true} />
         <TextInput source="restricciones_nutricionales" label="Restricciones alimentarias" helperText="Ej. alergia a la leche. Déjalo vacío si no tiene." fullWidth />
-        <ReferenceInput source="id_tutor" reference="tutores" label="Padre, madre o tutor">
-          <SelectInput optionText="nombre_tutor" validate={required()}/>
+        <ReferenceInput source="id_tutor" reference="tutores">
+          <SelectInput label="Padre, madre o tutor" optionText="nombre_tutor" validate={required()}/>
         </ReferenceInput>
         <SelectInput source="parentesco" label="Parentesco"
           choices={[
@@ -92,7 +92,7 @@ export function InfantesShow() {
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
         <SelectField source="sexo_patron" label="Sexo" choices={opcionesSexo} />
-        <TextField source="nombre_ebdi"/>
+        <TextField source="nombre_ebdi" label="EBDI" />
         <DateField source="fecha_ingreso" label="Fecha de ingreso" />
         <BooleanField source="activo" label="Expediente activo" />
         <BooleanField source="seguimientoActivo" label="Seguimiento activo" />
@@ -166,8 +166,8 @@ export function InfantesEdit() {
             validate={required()}
         />
         <TextInput source="restricciones_nutricionales" label="Restricciones alimentarias" helperText="Ej. alergia a la leche. Déjalo vacío si no tiene." fullWidth />
-        <ReferenceInput source="id_tutor" reference="tutores" label="Padre, madre o tutor">
-          <SelectInput optionText="nombre_tutor" validate={required()} fullWidth/>
+        <ReferenceInput source="id_tutor" reference="tutores">
+          <SelectInput label="Padre, madre o tutor" optionText="nombre_tutor" validate={required()} fullWidth/>
         </ReferenceInput>
         <SelectInput source="parentesco" label="Parentesco"
           choices={[

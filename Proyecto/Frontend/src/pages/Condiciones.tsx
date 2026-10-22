@@ -1,8 +1,8 @@
 import {List, Datagrid, TextField, DateField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
 
 const condicionesFilters = [
-    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" alwaysOn>
-        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes" />
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" alwaysOn>
+        <SelectInput label="Infante" optionText="nombre_completo" emptyText="Todos los infantes" />
     </ReferenceInput>,
     <DateInput key="fecha_registro" source="fecha_registro" label="Fecha de registro" alwaysOn/>,
     <TextInput key="descripcion" source="descripcion" label="Descripción" />,
@@ -29,8 +29,8 @@ export function CondicionesCreate() {
     return (
         <Create title="Registrar condición de salud">
             <SimpleForm>
-                <ReferenceInput source="id_infante" reference="infantes" label="Infante">
-                    <SelectInput optionText="nombre_completo" validate={required()}/>
+                <ReferenceInput source="id_infante" reference="infantes">
+                    <SelectInput label="Infante" optionText="nombre_completo" validate={required()}/>
                 </ReferenceInput>
                 <DateInput source="fecha_registro" label="Fecha de registro" validate={required()}/>
                 <TextInput source="descripcion" label="Descripción" multiline fullWidth validate={required()}/>

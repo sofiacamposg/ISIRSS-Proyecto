@@ -22,7 +22,8 @@ import { Route } from "react-router-dom";
 import PreguntasFrecuentes from "./pages/PreguntasFrecuentes";
 import AvisoPrivacidad from "./pages/AvisoPrivacidad";
 import Ayuda from "./pages/Ayuda";
-
+//Login
+import Login from "./pages/Login";
 //íconos
 import {
   PeopleOutline,
@@ -114,6 +115,14 @@ const tema: ThemeOptions = {
         },
       },
     },
+    RaSkipNavigationButton: {
+      styleOverrides: {
+        root: {
+          backgroundColor: colores.guinda,
+          color: colores.blanco,
+        },
+      },
+    },
   },
 };
 
@@ -124,10 +133,11 @@ function App() {
     <Admin
       title="Plataforma de Crecimiento y Desarrollo Saludable"
       theme={tema}
-      darkTheme={defaultDarkTheme}
+      darkTheme={null} //Solo es para que no se ponga por default darktheme en lugar de los colores que dice en Login.tsx 
       i18nProvider={i18nProvider}
       dataProvider={dataProvider}
       authProvider={authProvider}
+      loginPage={Login}
       dashboard={Dashboard}
       layout={AppLayout}
     >
