@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useGetList } from "react-admin";
+import { useGetList, Title } from "react-admin";
 import { Box, Card, CardContent, Typography, Grid, TextField, MenuItem, Button, Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper, CircularProgress,} from "@mui/material";
 
 // Datos que utilizan los reportes.
@@ -88,6 +88,13 @@ function formatearFecha(fecha: string) {
   return anio && mes && dia ? `${dia}/${mes}/${anio}` : fecha;
 }
 
+// Traduce el código del estado a texto legible
+const nombresEstado: Record<string, string> = {
+  requiere_seguimiento: "Requiere seguimiento",
+  en_seguimiento: "En seguimiento",
+  concluido: "Seguimiento concluido",
+};
+
 // Página principal de reportes.
 export const ReportesPage = () => {
   // Filtros elegidos por el usuario.
@@ -119,11 +126,11 @@ export const ReportesPage = () => {
     pagination: { page: 1, perPage: 1000 },
     sort: { field: "id", order: "DESC" },
   });
-  // Impide exportar si la fecha inicial supera a la final.
+  // Impide exportar si la fecha inicial supera a la final
   const rangoInvalido = Boolean(fechaDesde && fechaHasta && fechaDesde > fechaHasta);
   const cargando = cargandoInfantes || cargandoMediciones || cargandoSeguimientos;
   const error = errorInfantes || errorMediciones || errorSeguimientos;
-  // Aplica los filtros de infante y fechas a las mediciones.
+  // Aplica los filtros de infante y fechas a las mediciones
   const medicionesFiltradas = useMemo(() => {
     return mediciones.filter((medicion) => {
       const coincideInfante = infanteSeleccionado === "" || String(medicion.id_infante) === infanteSeleccionado;
@@ -134,7 +141,7 @@ export const ReportesPage = () => {
       );
     });
   }, [mediciones, infanteSeleccionado, fechaDesde, fechaHasta]);
-  // Aplica los mismos filtros a los seguimientos.
+  // Aplica los mismos filtros a los seguimientos
   const seguimientosFiltrados = useMemo(() => {
     return seguimientos.filter((seguimiento) => {
       const coincideInfante = infanteSeleccionado === "" || String(seguimiento.id_infante) === infanteSeleccionado;
@@ -145,7 +152,7 @@ export const ReportesPage = () => {
       );
     });
   }, [seguimientos, infanteSeleccionado, fechaDesde, fechaHasta]);
-  // Calcula los números que aparecen en las tarjetas.
+  // Calcula los números que aparecen en las tarjetas
   const infantesConMediciones = useMemo(() => {
     const ids = new Set(mediciones.map((medicion) => medicion.id_infante));
     return ids.size;
@@ -159,7 +166,7 @@ export const ReportesPage = () => {
     ).length;
   }, [infantes]);
 
-  // Cuenta los seguimientos según su estado.
+  // Cuenta los seguimientos según su estado
   const conteoEstados = useMemo(() => {
     return seguimientosFiltrados.reduce<Record<string, number>>(
       (conteo, seguimiento) => {
@@ -171,13 +178,13 @@ export const ReportesPage = () => {
   }, [seguimientosFiltrados]);
 
   const nombreInfante = (id: number) => infantes.find((infante) => Number(infante.id) === Number(id)) ?.nombre_completo ?? `Infante ${id}`;
-  // Restablece todos los filtros.
+  // Restablece todos los filtros
   const limpiarFiltros = () => {
     setInfanteSeleccionado("");
     setFechaDesde("");
     setFechaHasta("");
   };
-  // Muestra mensajes mientras se obtienen los datos o si ocurre un error.
+  // Muestra mensajes mientras se obtienen los datos o si ocurre un error
   if (cargando) {
     return (
       <Box sx={{ p: 4, display: "flex", gap: 2 }}>
@@ -196,10 +203,8 @@ export const ReportesPage = () => {
     );
   }
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
-        Reportes
-      </Typography>
+    <Box sx={{ pb: 4 }}>
+      <Title title="Reportes" />
       <Typography color="text.secondary" sx={{ mb: 3 }}>
         Resumen de infantes, mediciones y seguimientos registrados.
       </Typography>
@@ -286,14 +291,12 @@ export const ReportesPage = () => {
                 "Infante",
                 "Fecha",
                 "Motivo",
-                "Responsable",
                 "Estado",
               ],
               seguimientosFiltrados.map((seguimiento) => [
                 nombreInfante(seguimiento.id_infante),
                 seguimiento.fecha_apertura,
                 seguimiento.motivo,
-                //seguimiento.responsable,
                 seguimiento.estado,
               ])
             )
@@ -380,7 +383,7 @@ export const ReportesPage = () => {
                 <TableCell>{formatearFecha(seguimiento.fecha_apertura)}</TableCell>
                 <TableCell>{seguimiento.motivo}</TableCell>
                 {/*<TableCell>{seguimiento.responsable}</TableCell>*/}
-                <TableCell>{seguimiento.estado}</TableCell>
+                <TableCell>{nombresEstado[seguimiento.estado] ?? seguimiento.estado}</TableCell>
               </TableRow>
             ))}
 

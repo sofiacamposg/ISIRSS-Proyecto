@@ -12,6 +12,13 @@ const estilosMenu = {
         minHeight: 44,
         borderRadius: 2,
         mx: 1,
+        whiteSpace: "normal",
+        py: 1,
+        alignItems: "center",
+    },
+    // anula el noWrap de React-Admin 
+    "& .RaMenuItemLink-root .MuiTypography-noWrap": {
+        whiteSpace: "normal",
     },
     // íconos blancos separado para que funcione bien
     "& .RaMenuItemLink-root .RaMenuItemLink-icon": {

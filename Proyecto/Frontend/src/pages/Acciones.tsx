@@ -1,11 +1,11 @@
-import { List, Datagrid, TextField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateTimeInput, NumberInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer} from "react-admin";
+import { List, Datagrid, TextField, ReferenceField, ReferenceInput, SelectInput, TextInput, DateTimeInput, NumberInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton, FormDataConsumer, DateField} from "react-admin";
 
 const accionesFilters = [
-    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" label="Infante" alwaysOn>
-        <SelectInput optionText="nombre_completo" emptyText="Todos los infantes" />
+    <ReferenceInput key="id_infante" source="id_infante" reference="infantes" alwaysOn>
+        <SelectInput label="Infante" optionText="nombre_completo" emptyText="Todos los infantes" />
     </ReferenceInput>,
-    <ReferenceInput key="id_seguimiento" source="id_seguimiento" reference="seguimientos" label="Caso de seguimiento" >
-        <SelectInput optionText="motivo" emptyText="Todos los casos" />
+    <ReferenceInput key="id_seguimiento" source="id_seguimiento" reference="seguimientos" >
+        <SelectInput label="Caso de seguimiento" optionText="motivo" emptyText="Todos los casos" />
     </ReferenceInput>,
     <DateTimeInput key="fecha" source="fecha" label="Fecha y hora" />,
     <TextInput key="responsable_nombre" source="responsable_nombre" label="Responsable" alwaysOn/>,
@@ -24,11 +24,11 @@ export function AccionesList() {
                 <ReferenceField source="id_seguimiento" reference="seguimientos" label="Caso de seguimiento">
                     <TextField source="motivo" />
                 </ReferenceField>
-                <TextField source="fecha" label="Fecha y hora" />
+                <DateField source="fecha" label="Fecha y hora" showTime />
                 <TextField source="acciones_realizadas" label="Acciones realizadas" />
                 <TextField source="responsable_nombre" label="Responsable" />
-                <ShowButton />
-                <EditButton />
+                <ShowButton label="Ver acción" />
+                <EditButton label="Editar" />
             </Datagrid>
         </List>
     );
@@ -38,13 +38,13 @@ export function AccionesCreate() {
     return (
         <Create title="Registrar acción">
             <SimpleForm>
-                <ReferenceInput source="id_infante" reference="infantes" label="Infante">
-                    <SelectInput optionText="nombre_completo" validate={required()} fullWidth/>
+                <ReferenceInput source="id_infante" reference="infantes">
+                    <SelectInput label="Infante" optionText="nombre_completo" validate={required()} fullWidth/>
                 </ReferenceInput>
                 <FormDataConsumer>
                     {({ formData }) => formData.id_infante ? (
-                        <ReferenceInput source="id_seguimiento" reference="seguimientos" label="Caso de seguimiento" filter={{ id_infante: formData.id_infante }}>
-                            <SelectInput optionText="motivo" validate={required()} fullWidth />
+                        <ReferenceInput source="id_seguimiento" reference="seguimientos" filter={{ id_infante: formData.id_infante }}>
+                            <SelectInput label="Caso de seguimiento" optionText="motivo" validate={required()} fullWidth />
                         </ReferenceInput>
                     ) : (
                         <SelectInput source="id_seguimiento" label="Caso de seguimiento" choices={[]} disabled fullWidth/>
@@ -85,7 +85,7 @@ export function AccionesShow() {
                 <ReferenceField source="id_seguimiento" reference="seguimientos" label="Caso de seguimiento">
                     <TextField source="motivo" />
                 </ReferenceField>
-                <TextField source="fecha" label="Fecha y hora" />
+                <DateField source="fecha" label="Fecha y hora" showTime />
                 <TextField source="acciones_realizadas" label="Acciones realizadas"/>
                 <TextField source="observaciones" label="Observaciones"/>
                 <TextField source="responsable_nombre" label="Responsable"/>
@@ -100,13 +100,13 @@ export function AccionesEdit() {
     return (
         <Edit title="Editar acción">
             <SimpleForm>
-                <ReferenceInput source="id_infante" reference="infantes" label="Infante">
-                    <SelectInput optionText="nombre_completo" validate={required()} fullWidth/>
+                <ReferenceInput source="id_infante" reference="infantes">
+                    <SelectInput label="Infante" optionText="nombre_completo" validate={required()} fullWidth/>
                 </ReferenceInput>
                 <FormDataConsumer>
                     {({ formData }) => formData.id_infante ? (
-                        <ReferenceInput source="id_seguimiento" reference="seguimientos" label="Caso de seguimiento" filter={{ id_infante: formData.id_infante }}>
-                            <SelectInput optionText="motivo" validate={required()} fullWidth />
+                        <ReferenceInput source="id_seguimiento" reference="seguimientos" filter={{ id_infante: formData.id_infante }}>
+                            <SelectInput label="Caso de seguimiento" optionText="motivo" validate={required()} fullWidth />
                         </ReferenceInput>
                     ) : (
                         <SelectInput source="id_seguimiento" label="Caso de seguimiento" choices={[]} disabled fullWidth/>
