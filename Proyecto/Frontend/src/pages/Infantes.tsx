@@ -16,9 +16,7 @@ const infantesFilters = [
     <TextInput key="matricula" source="matricula" label="Matrícula" alwaysOn />,
     <TextInput key="nombre_completo" source="nombre_completo" label="Nombre completo" />,
     <SelectInput key="sexo_patron" source="sexo_patron" label="Sexo" choices={opcionesSexo} emptyText="Todos" />,
-    <ReferenceInput key="id_ebdi" source="id_ebdi" reference="ebdis" label="EBDI" >
-        <SelectInput optionText="nombre_ebdi" emptyText="Todas las EBDI" />
-    </ReferenceInput>,
+    <TextInput key="nombre_ebdi" source="nombre_ebdi" label="EBDI"/>,
     <SelectInput key="activo" source="activo" label="Expediente" choices={[
             { id: true, name: "Activo" },
             { id: false, name: "Inactivo" },
@@ -36,9 +34,7 @@ export function InfantesList() {
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
         <SelectField source="sexo_patron" label="Sexo" choices={opcionesSexo} />
-        <ReferenceField source="id_ebdi" reference="ebdis" label="EBDI">
-          <TextField source="nombre_ebdi"/>
-        </ReferenceField>
+        <TextField source="nombre_ebdi"/>
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
         <DateField source="fecha_medicion" label="Última medición" emptyText="Sin registro" />
         <SelectField source="estado" label="Estado de seguimiento" choices={estadosSeguimiento} emptyText="Sin seguimiento" />
@@ -96,15 +92,13 @@ export function InfantesShow() {
         <TextField source="nombre_completo" label="Nombre completo" />
         <DateField source="fecha_nacimiento" label="Fecha de nacimiento" />
         <SelectField source="sexo_patron" label="Sexo" choices={opcionesSexo} />
-        <ReferenceField source="id_ebdi" reference="ebdis" label="EBDI">
-          <TextField source="nombre_ebdi"/>
-        </ReferenceField>
+        <TextField source="nombre_ebdi"/>
         <DateField source="fecha_ingreso" label="Fecha de ingreso" />
         <BooleanField source="activo" label="Expediente activo" />
         <BooleanField source="seguimientoActivo" label="Seguimiento activo" />
         <TextField source="restricciones_nutricionales" label="Restricciones alimentarias" />
         <TextField source="nombre_tutor" label="Padre, madre o tutor" />
-        <ReferenceManyField reference="mediciones" target="id_infante" label="Datos actuales" >
+        <ReferenceManyField reference="mediciones" target="id_infante" label="Historial de crecimiento" >
           <Datagrid bulkActionButtons={false}>
             <DateField source="fecha_medicion" label="Fecha" />
             <NumberField source="peso_kg" label="Peso (kg)" />

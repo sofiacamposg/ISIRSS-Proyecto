@@ -1,7 +1,7 @@
 import { Box, Typography, Card, CardContent, Grid, Button, Stack } from "@mui/material";
 import { Title, useGetList, usePermissions, ListBase, Datagrid, TextField, DateField, ShowButton, SelectField } from "react-admin";
 import type { ReactNode } from "react";
-import { AddOutlined, StraightenOutlined, ShowChartOutlined, DescriptionOutlined } from "@mui/icons-material";
+import { AddOutlined, StraightenOutlined, ShowChartOutlined, DescriptionOutlined, PeopleOutline } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 
 // tarjeta con números
@@ -23,10 +23,11 @@ function TarjetaResumen({ titulo, valor, descripcion }: { titulo: string; valor:
   );
 }
 
-const useTotal = (recurso: string) => {
-  const { total, isPending, error } = useGetList(recurso, {
-    pagination: { page: 1, perPage: 1 }, // solo pedimos 1 registro por que nos interesa el total, no la lista
-  });
+const useTotal = (recurso: string, activo: boolean) => {
+  const { total, isPending, error } = useGetList(recurso, 
+    { pagination: { page: 1, perPage: 1 } }, // solo pedimos 1 registro por que nos interesa el total, no la lista
+    { enabled: activo }
+  );
 
   if (isPending) {
     return "Cargando…";
@@ -38,13 +39,37 @@ const useTotal = (recurso: string) => {
 };
 
 const Dashboard = () => {
+
+  // roles del sistema
   const { permissions } = usePermissions();
-  const esTutor = permissions === "tutor"; // el tutor no debe ver totales de todo el padrón
-  const puedeRegistrar = permissions === "administrador" || permissions === "estancia";
-  const totalInfantes = useTotal("infantes");
-  const totalMediciones = useTotal("mediciones");
-  const totalSeguimientos = useTotal("seguimientos");
-  const totalAlertas = useTotal("alertas");
+  const esAdmin = permissions === "administrador";
+  const esEstancia = permissions === "estancia";
+  const esCoordinador = permissions === "coordinador_regional";
+  const esTutor = permissions === "tutor";
+
+  const puedeRegistrar = esAdmin || esEstancia;
+  const puedeVerReportes = esAdmin || esCoordinador;
+  const puedeVerPadron = esAdmin || esEstancia || esCoordinador;
+
+  const totalInfantes = useTotal("infantes", puedeVerPadron);
+  const totalMediciones = useTotal("mediciones", puedeVerPadron);
+  const totalSeguimientos = useTotal("seguimientos", puedeVerPadron);
+  const totalAlertas = useTotal("alertas", puedeVerPadron);
+
+  // descripción de la página según el rol
+  let descripcion = "Bienvenida/o a la plataforma.";
+  if (esAdmin) {
+    descripcion = "Resumen general del padrón infantil. Revisa las alertas, registra mediciones y consulta los reportes.";
+  }
+  if (esEstancia) {
+    descripcion = "Resumen del padrón infantil. Registra las mediciones pendientes y revisa el estado de los infantes.";
+  }
+  if (esCoordinador) {
+    descripcion = "Resumen del padrón infantil. Consulta las mediciones, los seguimientos y los reportes de la región.";
+  }
+  if (esTutor) {
+    descripcion = "Consulta la información y el crecimiento de tus infantes.";
+  }
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -52,11 +77,11 @@ const Dashboard = () => {
 
       {/* descripción corta de la página */}
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Resumen del padrón infantil. Revisa las alertas y registra las mediciones pendientes.
+        {descripcion}
       </Typography>
 
-      {/* resumen (no visible para tutores) */}
-      {!esTutor && (
+      {/* resumen (admin, EBDI y coordinador) */}
+      {puedeVerPadron && (
         <Box component="section" aria-labelledby="titulo-resumen" sx={{ mb: 4 }}>
           <Typography id="titulo-resumen" variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
             Resumen del padrón
@@ -95,18 +120,23 @@ const Dashboard = () => {
               Registrar infante
             </Button>
           )}
+          {esTutor && (
+            <Button component={RouterLink} to="/infantes" variant="contained" startIcon={<PeopleOutline />}>
+              Ver mis infantes
+            </Button>
+          )}
           <Button component={RouterLink} to="/crecimiento" variant="outlined" startIcon={<ShowChartOutlined />}>
             Consultar gráficas de crecimiento
           </Button>
-          {!esTutor && (
+          {puedeVerReportes && (
             <Button component={RouterLink} to="/reportes" variant="outlined" startIcon={<DescriptionOutlined />}>
               Ver reportes
             </Button>
           )}
         </Stack>
       </Box>
-      {/* infantes registrados recientemente (no visible para tutores) */}
-      {!esTutor && (
+      {/* infantes registrados recientemente (admin, EBDI y coordinador) */}
+      {puedeVerPadron  && (
         <Box component="section" aria-labelledby="titulo-recientes" sx={{ mb: 4 }}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
             <Typography id="titulo-recientes" variant="h5" component="h2" sx={{ fontWeight: 700 }}>
@@ -153,7 +183,7 @@ const Dashboard = () => {
               <Box>
                 <Typography component="dt" sx={{ fontWeight: 700, color: "primary.main" }} >IMC</Typography>
                 <Typography component="dd" sx={{ m: 0 }} color="text.secondary">
-                  El índice de masa corporal (IMC) sirve para medir la relación entre el peso y la talla, lo que  permite identificar el sobrepeso y la obesidad en adultos.
+                  Índice de masa corporal. Relaciona el peso con la talla; en niñas y niños se interpreta con tablas de percentiles según edad y sexo.
                 </Typography>
               </Box>
               <Box>

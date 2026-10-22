@@ -4,6 +4,7 @@ import { HomeOutlined } from "@mui/icons-material";
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 
+// & <- este componente, es decir el menu al que se le aplica para este código 
 // Estilos de los elementos del menú, texto e íconos blancos
 const estilosMenu = {
     // cada elemento del menú, texto blanco y altura mínima
@@ -12,12 +13,11 @@ const estilosMenu = {
         minHeight: 44,
         borderRadius: 2,
         mx: 1,
-        whiteSpace: "normal",
         py: 1,
         alignItems: "center",
     },
-    // anula el noWrap de React-Admin 
-    "& .RaMenuItemLink-root .MuiTypography-noWrap": {
+    // React-Admin le pone a MUI noWrap, se activa
+    "&.RaMenu-open .RaMenuItemLink-root, &.RaMenu-open .RaMenuItemLink-root .MuiTypography-noWrap": {
         whiteSpace: "normal",
     },
     // íconos blancos separado para que funcione bien
@@ -37,6 +37,16 @@ const estilosMenu = {
     // ícono guinda separado para que funcione bien
     "& .RaMenuItemLink-root.RaMenuItemLink-active .RaMenuItemLink-icon": {
         color: "primary.main", // ícono guinda
+    },
+
+    // menú cerrado con la opción seleccionada centrada
+    "&.RaMenu-closed .RaMenuItemLink-root": {
+        px: 2,
+        justifyContent: "center",
+    },
+    // menú cerrado, el menú ya no necesita la caja grande
+    "&.RaMenu-closed .RaMenuItemLink-icon": {
+        minWidth: 0,
     },
 }
 
@@ -125,7 +135,7 @@ export function MenuLateral() {
                 {(esAdmin) && <Menu.ResourceItem name="usuarios" aria-current={paginaActual("/usuarios")} />}
 
                 {(esAdmin || esCoordinador) && <Categoria>Catálogos</Categoria>}
-                {(esAdmin || esCoordinador) && <Menu.ResourceItem name="regiones" aria-current={paginaActual("/regiones")} />}
+                {(esAdmin) && <Menu.ResourceItem name="regiones" aria-current={paginaActual("/regiones")} />}
                 {(esAdmin || esCoordinador) && <Menu.ResourceItem name="estados" aria-current={paginaActual("/estados")} />}
                 {(esAdmin || esCoordinador) && <Menu.ResourceItem name="ebdis" aria-current={paginaActual("/ebdis")} />}
             </Menu>

@@ -1,21 +1,22 @@
 import { useState } from "react";
-import { useGetList } from "react-admin";
+import { useGetList, useGetManyReference, Title } from "react-admin";
 import { Box, FormControl, InputLabel, MenuItem, Select, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,} from "@mui/material";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, } from "recharts";
 
 type Infante = {
   id: number;
-  nombre: string;
+  nombre_completo: string;
 };
 
 type Medicion = {
-  id: number;
-  infanteId: number;
-  fecha: string;
-  pesoKg: number;
-  tallaCm: number;
-  perimetroCefalicoCm?: number;
-  observaciones?: string;
+    id: number;
+    id_medicion: number;
+    id_infante: number;
+    fecha_medicion: string;
+    peso_kg: number;
+    talla_cm: number;
+    perimetro_cefalico_cm?: number | null;
+    observaciones?: string | null;
 };
 
 export function CrecimientoPage() {
@@ -26,51 +27,95 @@ export function CrecimientoPage() {
     error: errorInfantes,
   } = useGetList<Infante>("infantes", {
     pagination: { page: 1, perPage: 100 },
-    sort: { field: "nombre", order: "ASC" },
+    sort: { field: "nombre_completo", order: "ASC" },
   });
   const {
     data: mediciones = [],
     isPending: cargandoMediciones,
     error: errorMediciones,
-  } = useGetList<Medicion>("mediciones", {
+  } = useGetManyReference<Medicion>("mediciones", {
+    target: "id_infante",
+    id: infanteId === "" ? 0 : infanteId,
     pagination: { page: 1, perPage: 1000 },
-    sort: { field: "fecha", order: "ASC" },
+    sort: { field: "fecha_medicion", order: "ASC" },
+  }, {
+    enabled: infanteId !== "",
   });
 
-  if (cargandoInfantes || cargandoMediciones) {
-    return <Typography>Cargando información...</Typography>;
+  if (cargandoInfantes) {
+      return <Typography role="status">Cargando información...</Typography>;
   }
-
-  if (errorInfantes || errorMediciones) {
-    return (
-      <Typography color="error">
-        No fue posible cargar los datos de crecimiento.
-      </Typography>
-    );
+  if (errorInfantes) {
+      return (
+          <Typography role="alert" color="error">
+            No fue posible cargar los datos de crecimiento. Recarga la página o intenta más tarde.
+          </Typography>
+      );
   }
-  const medicionesInfante = mediciones.filter((m) => String(m.infanteId) === String(infanteId)).sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const datosGrafica = medicionesInfante.map((m) => ({
-    ...m,
-    fechaCorta: m.fecha.split("-").reverse().join("/"),
-    imc:
-      m.tallaCm > 0
-        ? m.pesoKg / Math.pow(m.tallaCm / 100, 2)
-        : null,
-  }));
+  // IA -- Propuesto con apoyo de IA (Claude)
+  // La carga de mediciones ya no reemplaza la página, el selector se queda y no pierde el foco
+  const cargandoSeleccion = infanteId !== "" && cargandoMediciones;
+  const errorSeleccion = infanteId !== "" && errorMediciones;
+  
+  const medicionesInfante = [...mediciones].sort(
+    (a, b) =>
+      new Date(a.fecha_medicion).getTime() -
+      new Date(b.fecha_medicion).getTime()
+  );
 
-  function GraficaLinea({
-    titulo,
-    campo,
-    unidad,
-  }: {
+  const datosGrafica = medicionesInfante.map((m) => {
+    const fecha = new Date(m.fecha_medicion);
+    const pesoKg = Number(m.peso_kg);
+    const tallaCm = Number(m.talla_cm);
+
+    return {
+      id: m.id_medicion ?? m.id,
+      fecha: m.fecha_medicion,
+      fechaCorta: fecha.toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      }),
+      pesoKg,
+      tallaCm,
+      perimetroCefalicoCm:
+        m.perimetro_cefalico_cm == null
+          ? null
+          : Number(m.perimetro_cefalico_cm),
+      observaciones: m.observaciones,
+      imc:
+        tallaCm > 0
+          ? pesoKg / Math.pow(tallaCm / 100, 2)
+          : null,
+    };
+  });
+  
+  /*
+  console.log("Infante seleccionado:", infanteId);
+  console.log("Mediciones recibidas:", mediciones);
+  console.log("Cantidad de mediciones:", mediciones.length);
+  console.log("Datos de las gráficas:", datosGrafica);
+  */
+
+  function GraficaLinea({titulo, campo, unidad,}: {
     titulo: string;
     campo: "pesoKg" | "tallaCm" | "perimetroCefalicoCm";
     unidad: string;
   }) {
     const datos = datosGrafica.filter((m) => m[campo] != null);
+
+    // resumen de texto para lectores de pantalla, indica primera y última medicion
+    let resumen = "";
+    if (datos.length > 0) {
+      const primera = datos[0];
+      const ultima = datos[datos.length - 1];
+      resumen = `${titulo}: ${datos.length} mediciones, de ${primera[campo]} ${unidad} el ${primera.fechaCorta} a ${ultima[campo]} ${unidad} el ${ultima.fechaCorta}.`;
+    }
+    const idTitulo = `titulo-grafica-${campo}`; // id para conectar sección con su título
     return (
-      <Paper sx={{ p: 2, minWidth: 0 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper component="section" aria-labelledby= {idTitulo} sx={{ p: 2, minWidth: 0 }}>
+        <Typography id={idTitulo} variant="h6" component="h2" gutterBottom>
           {titulo}
         </Typography>
         {datos.length === 0 ? (
@@ -78,9 +123,10 @@ export function CrecimientoPage() {
             No hay mediciones disponibles para esta gráfica.
           </Typography>
         ) : (
-          <Box sx={{ width: "100%", height: 280 }}>
+
+          <Box role="img" aria-label={resumen} sx={{ width: "100%", height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={datos}>
+              <LineChart data={datos} accessibilityLayer={false}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="fechaCorta" />
                 <YAxis />
@@ -90,7 +136,7 @@ export function CrecimientoPage() {
                     titulo,
                   ]}
                 />
-                <Line type="monotone" dataKey={campo} name={titulo} stroke="#1976d2" strokeWidth={2} dot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey={campo} name={titulo} stroke="#9b2247" strokeWidth={2} dot={{ r: 4 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
           </Box>
@@ -100,13 +146,10 @@ export function CrecimientoPage() {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Crecimiento infantil
-      </Typography>
+    <Box sx={{ pb: 4 }}>
+      <Title title="Gráficas de crecimiento"/>
       <Typography sx={{ mb: 3 }} color="text.secondary">
-        Consulta la evolución de las mediciones registradas
-        para cada infante.
+        Consulta la evolución de las mediciones registradas para cada infante.
       </Typography>
       <FormControl fullWidth sx={{ mb: 3, maxWidth: 500 }}>
         <InputLabel id="infante-label">
@@ -119,12 +162,21 @@ export function CrecimientoPage() {
         >
           {infantes.map((infante) => (
             <MenuItem key={infante.id} value={infante.id}>
-              {infante.nombre}
+              {infante.nombre_completo}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
-      {infanteId === "" ? (
+      {cargandoSeleccion && (
+        <Typography role="status" sx={{ mb: 3}}>Cargando mediciones...</Typography>
+      )}
+      {errorSeleccion && (
+        <Typography role="alert" color="error" sx={{ mb: 3 }}>
+          No fue posible cargar las mediciones. Intenta de nuevo.
+        </Typography>
+      )}
+      
+      {!cargandoSeleccion && !errorSeleccion && (infanteId === "" ? (
         <Typography>
           Selecciona un infante para consultar sus gráficas.
         </Typography>
@@ -141,8 +193,8 @@ export function CrecimientoPage() {
                 <GraficaLinea titulo="Evolución de la talla" campo="tallaCm" unidad="cm" />
                 <GraficaLinea titulo="Evolución del perímetro cefálico" campo="perimetroCefalicoCm" unidad="cm" />
               </Box>
-              <Typography variant="h5" sx={{ mb: 2 }}>
-                Historial de IMC
+              <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+                Historial de mediciones
               </Typography>
               <TableContainer component={Paper}>
                 <Table>
@@ -154,6 +206,9 @@ export function CrecimientoPage() {
                       </TableCell>
                       <TableCell align="right">
                         Talla (cm)
+                      </TableCell>
+                      <TableCell align="right">
+                        Perímetro cefálico (cm)
                       </TableCell>
                       <TableCell align="right">
                         IMC (kg/m²)
@@ -172,6 +227,9 @@ export function CrecimientoPage() {
                           {m.tallaCm.toFixed(1)}
                         </TableCell>
                         <TableCell align="right">
+                          {m.perimetroCefalicoCm == null ? "Sin registro" : m.perimetroCefalicoCm.toFixed(1)}
+                        </TableCell>
+                        <TableCell align="right">
                           {m.imc == null ? "No disponible" : m.imc.toFixed(2)}
                         </TableCell>
                       </TableRow>
@@ -179,20 +237,14 @@ export function CrecimientoPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 2 }}
-              >
-                El IMC es un cálculo descriptivo. En población
-                infantil, su interpretación depende de la edad,
-                el sexo y las referencias de crecimiento aprobadas.
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }} >
+                El IMC es un cálculo descriptivo. En población infantil, su interpretación depende de la edad, el sexo y las referencias de crecimiento aprobadas.
                 Esta pantalla no emite diagnósticos.
               </Typography>
             </>
           )}
         </>
-      )}
+      ))}
     </Box>
   );
 }
