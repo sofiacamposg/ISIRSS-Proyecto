@@ -80,6 +80,28 @@ const tema: ThemeOptions = {
         },
       },
     },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          minHeight: 44,
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          minWidth: 44,
+          minHeight: 44,
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        notchedOutline: {
+          borderColor: "#808080",
+        },
+      },
+    },
   },
 };
 
