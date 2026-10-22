@@ -241,13 +241,29 @@ app.get("/tutores/:id", autenticarUsuario, autorizarRoles("administrador", "coor
 
 //---------------------------------------------------------------------------------------------------------------
 
+//relacionar usuario tutor con infante
+async function tutorTieneAccesoInfante(idUsuario, idInfante) {
+    const [relaciones] = await pool.execute(
+        `SELECT 1
+         FROM tutores t
+         INNER JOIN infante_tutor it
+             ON it.id_tutor = t.id_tutor
+         WHERE t.id_usuario = ?
+           AND it.id_infante = ?
+           AND it.acceso_autorizado = TRUE
+         LIMIT 1`,
+        [idUsuario, idInfante]
+    );
+    return relaciones.length > 0;
+}
+
 async function getListInfantes(collection, req, res) {
-    // Obtener infantes específicos para ReferenceField / getMany
+    // Obtener infantes específicos para ReferenceField / getMany    
     if (req.query.id) {
         const ids = Array.isArray(req.query.id) ? req.query.id : [req.query.id];
         const placeholders = ids.map(() => "?").join(",");
-        const [data] = await pool.execute(
-            `SELECT
+        let sql = `
+            SELECT
                 i.id_infante AS id,
                 i.matricula,
                 CONCAT_WS(' ',
@@ -255,11 +271,26 @@ async function getListInfantes(collection, req, res) {
                     i.apellido_paterno,
                     i.apellido_materno
                 ) AS nombre_completo
-             FROM infantes i
-             WHERE i.id_infante IN (${placeholders})`,
-            ids
-        );
-        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: collection, motivo: "Consulta de infantes" });
+            FROM infantes i
+            WHERE i.id_infante IN (${placeholders})
+        `;
+        const parametrosId = [...ids];
+        // Los tutores solo pueden consultar infantes autorizados.
+        if (req.usuario?.rol === "tutor") {
+            sql += `
+                AND EXISTS (
+                    SELECT 1
+                    FROM tutores t
+                    INNER JOIN infante_tutor it
+                        ON it.id_tutor = t.id_tutor
+                    WHERE t.id_usuario = ?
+                    AND it.id_infante = i.id_infante
+                    AND it.acceso_autorizado = TRUE
+                )
+            `;
+            parametrosId.push(req.usuario.id_usuario);
+        }
+        const [data] = await pool.execute(sql, parametrosId);
         return res.json(data);
     }
     // Paginación
@@ -353,6 +384,22 @@ async function getListInfantes(collection, req, res) {
         `);
         parametros.push(estado);
     }
+    // Filtro para combinar matrícula, nombre, sexo, estancia, estado y activo
+    if (req.usuario?.rol === "tutor") {
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM tutores t
+                INNER JOIN infante_tutor it
+                    ON it.id_tutor = t.id_tutor
+                WHERE t.id_usuario = ?
+                AND it.id_infante = i.id_infante
+                AND it.acceso_autorizado = TRUE
+            )
+        `);
+
+        parametros.push(req.usuario.id_usuario);
+    }
     const whereSQL = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
     // Consultar infantes, conservando los datos originales
     const [data] = await pool.execute(
@@ -422,19 +469,13 @@ async function getListInfantes(collection, req, res) {
 
 app.get("/infantes", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-
-        if ("target" in req.query) {
-            await getManyReference("infantes", req, res);
-        } else if ("id_infante" in req.query) {
-            await getMany("infantes", req, res);
-        } else {
-            await getListInfantes("infantes", req, res);
-        }
-
+        await getListInfantes("infantes", req, res);
     } catch (error) {
         await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "infantes", motivo: error.message });
         console.error("Error en GET /infantes:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            mensaje: "Error al consultar los infantes."
+        });
     }
 });
 
@@ -595,6 +636,17 @@ app.post("/infantes", autenticarUsuario, autorizarRoles("administrador", "estanc
 });
 
 async function getOneInfante(collection, id, req, res) {
+    // Los tutores solo pueden abrir expedientes autorizados.
+    if (req.usuario?.rol === "tutor") {
+        const tieneAcceso = await tutorTieneAccesoInfante(
+            req.usuario.id_usuario,
+            id
+        );
+
+        if (!tieneAcceso) {
+            return res.sendStatus(404);
+        }
+    }
     let [data] = await pool.execute(
         `SELECT
             i.id_infante AS id,
@@ -1321,6 +1373,21 @@ async function getListMediciones(collection, req, res) {
             LIMIT 1
         )
     `;
+    // Para la vista del usuario tipo tutor
+    if (req.usuario?.rol === "tutor") {
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM tutores t
+                INNER JOIN infante_tutor it
+                    ON it.id_tutor = t.id_tutor
+                WHERE t.id_usuario = ?
+                AND it.id_infante = m.id_infante
+                AND it.acceso_autorizado = TRUE
+            )
+        `);
+        parametros.push(req.usuario.id_usuario);
+    }
     const where = `WHERE ${condicionUltimaMedicion} ${condiciones.length > 0 ? "AND " + condiciones.join(" AND ") : ""}`;
     // Consultar mediciones filtradas
     const [data] = await pool.execute(
@@ -1356,6 +1423,25 @@ async function getMedicionesPorInfante(req, res) {
             error: "El ID del infante no es válido."
         });
     }
+    // Los tutores solo pueden consultar infantes autorizados.
+    if (req.usuario?.rol === "tutor") {
+        const tieneAcceso = await tutorTieneAccesoInfante(
+            req.usuario.id_usuario,
+            idInfante
+        );
+
+        if (!tieneAcceso) {
+            return res.status(404).json({
+                mensaje: "No se encontraron mediciones para este infante."
+            });
+        }
+    }
+    if (!Number.isInteger(idInfante) || idInfante <= 0) {
+        return res.status(400).json({
+            error: "El ID del infante no es válido."
+        });
+    }
+    // Paginacion y ordenamiento
     const inicio = Math.max(0, Number(req.query._start) || 0);
     const finSolicitado = Number(req.query._end);
     const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
@@ -1395,13 +1481,19 @@ app.get("/mediciones", autenticarUsuario, autorizarRoles("administrador", "coord
             return await getMedicionesPorInfante(req, res);
         }
 
-        if ("target" in req.query) {
-            return await getManyReference("mediciones", req, res);
+        if (req.query.target === "id_infante") {
+            return await getMedicionesPorInfante(req, res);
         }
 
-        if ("id" in req.query) {
-            return await getMany("mediciones", req, res);
+        // Evitar llamadas a funciones que no están definidas.
+        if ("target" in req.query || "id" in req.query) {
+            return res.status(400).json({
+                mensaje: "La consulta solicitada para mediciones no está implementada."
+            });
         }
+
+        // Lista general de mediciones, con filtro de autorización para tutores.
+        return await getListMediciones("mediciones", req, res);
 
         // No modificar: otras pantallas usan esta consulta.
         return await getListMediciones("mediciones", req, res);
@@ -3328,6 +3420,147 @@ function autorizarRoles(...rolesPermitidos) {
     };
 }
 
+// Autorizacion tutores - infantes
+// Solo los administradores pueden consultar esta sección.
+app.get("/infante_tutor", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
+        try {
+            const inicio = Math.max(0, Number(req.query._start) || 0);
+            const finSolicitado = Number(req.query._end);
+            const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
+            const limite = Math.min(fin - inicio, 100);
+            const columnasPermitidas = {
+                id: "it.id_infante",
+                id_infante: "it.id_infante",
+                id_tutor: "it.id_tutor",
+                nombre_infante: "i.nombre",
+                nombre_tutor: "t.nombre",
+                parentesco: "it.parentesco",
+                acceso_autorizado: "it.acceso_autorizado",
+                autorizado_en: "it.autorizado_en"
+            };
+            const sortSolicitado = String(req.query._sort || "id_infante");
+            const sortBy = columnasPermitidas[sortSolicitado] || "it.id_infante";
+            const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+            const [relaciones] = await pool.execute(
+                `SELECT
+                    CONCAT(it.id_infante, '-', it.id_tutor) AS id,
+                    it.id_infante,
+                    it.id_tutor,
+                    CONCAT_WS(' ',
+                        i.nombre,
+                        i.apellido_paterno,
+                        i.apellido_materno
+                    ) AS nombre_infante,
+                    t.nombre AS nombre_tutor,
+                    t.correo AS correo_tutor,
+                    it.parentesco,
+                    it.acceso_autorizado,
+                    it.autorizado_por,
+                    it.autorizado_en,
+                    u.nombre AS nombre_autorizador
+                 FROM infante_tutor it
+                 INNER JOIN infantes i
+                    ON i.id_infante = it.id_infante
+                 INNER JOIN tutores t
+                    ON t.id_tutor = it.id_tutor
+                 LEFT JOIN usuarios u
+                    ON u.id_usuario = it.autorizado_por
+                 ORDER BY ${sortBy} ${sortOrder}
+                 LIMIT ? OFFSET ?`,
+                [limite, inicio]
+            );
+            const [conteo] = await pool.execute(
+                `SELECT COUNT(*) AS total
+                 FROM infante_tutor`
+            );
+            res.set("Access-Control-Expose-Headers", "X-Total-Count");
+            res.set("X-Total-Count", String(conteo[0].total));
+            return res.json(relaciones);
+        } catch (error) {
+            console.error("Error al consultar autorizaciones:", error);
+            return res.status(500).json({
+                mensaje: "Error al consultar las relaciones de tutores e infantes."
+            });
+        }
+    }
+);
+
+// Autorizar o revocar el acceso de un tutor a un infante.
+app.patch("/infante_tutor/:id", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
+        try {
+            const coincidencia = /^(\d+)-(\d+)$/.exec(req.params.id);
+            if (!coincidencia) {
+                return res.status(400).json({
+                    mensaje: "El identificador de la relación no es válido."
+                });
+            }
+            const idInfante = Number(coincidencia[1]);
+            const idTutor = Number(coincidencia[2]);
+            const acceso = req.body.acceso_autorizado;
+            if (acceso !== true && acceso !== false) {
+                return res.status(400).json({
+                    mensaje: "acceso_autorizado debe ser true o false."
+                });
+            }
+            const [resultado] = await pool.execute(
+                `UPDATE infante_tutor
+                 SET acceso_autorizado = ?,
+                     autorizado_por = CASE
+                         WHEN ? = 1 THEN ?
+                         ELSE NULL
+                     END,
+                     autorizado_en = CASE
+                         WHEN ? = 1 THEN CURRENT_TIMESTAMP
+                         ELSE NULL
+                     END
+                 WHERE id_infante = ?
+                   AND id_tutor = ?`,
+                [acceso ? 1 : 0, acceso ? 1 : 0, req.usuario.id_usuario, acceso ? 1 : 0, idInfante, idTutor]
+            );
+            // affectedRows puede ser 0 si el estado ya era el solicitado.
+            const [relaciones] = await pool.execute(
+                `SELECT
+                    CONCAT(it.id_infante, '-', it.id_tutor) AS id,
+                    it.id_infante,
+                    it.id_tutor,
+                    CONCAT_WS(' ',
+                        i.nombre,
+                        i.apellido_paterno,
+                        i.apellido_materno
+                    ) AS nombre_infante,
+                    t.nombre AS nombre_tutor,
+                    t.correo AS correo_tutor,
+                    it.parentesco,
+                    it.acceso_autorizado,
+                    it.autorizado_por,
+                    it.autorizado_en,
+                    u.nombre AS nombre_autorizador
+                 FROM infante_tutor it
+                 INNER JOIN infantes i
+                    ON i.id_infante = it.id_infante
+                 INNER JOIN tutores t
+                    ON t.id_tutor = it.id_tutor
+                 LEFT JOIN usuarios u
+                    ON u.id_usuario = it.autorizado_por
+                 WHERE it.id_infante = ?
+                   AND it.id_tutor = ?`,
+                [idInfante, idTutor]
+            );
+            if (relaciones.length === 0) {
+                return res.status(404).json({
+                    mensaje: "No se encontró la relación entre el tutor y el infante."
+                });
+            }
+            return res.json(relaciones[0]);
+        } catch (error) {
+            console.error("Error al actualizar autorización:", error);
+            return res.status(500).json({
+                mensaje: "Error al actualizar la autorización."
+            });
+        }
+    }
+);
+
  // demo
 app.post("/login", async (req, res) => {
     try {
@@ -3738,88 +3971,167 @@ app.get("/roles", autenticarUsuario, autorizarRoles("administrador"), async (req
 });
 
 app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
-    try {
-        const { nombre, correo, password, id_rol, estado } = req.body;
-        if ( typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || typeof password !== "string" || !password || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0) {
-            return res.status(400).json({
-                mensaje: "Nombre, correo, contraseña y rol son obligatorios."
+        let conexion;
+        try {
+            const {
+                nombre,
+                correo,
+                password,
+                id_rol,
+                estado,
+                telefono
+            } = req.body;
+            if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || typeof password !== "string" || !password || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0) {
+                return res.status(400).json({
+                    mensaje: "Nombre, correo, contraseña y rol son obligatorios."
+                });
+            }
+            const nombreLimpio = nombre.trim();
+            const correoLimpio = correo.trim().toLowerCase();
+            const estadoFinal = estado ?? "activo";
+            const idRol = Number(id_rol);
+            const telefonoLimpio = telefono?.trim() || null;
+            if (nombreLimpio.length > 150 || correoLimpio.length > 254) {
+                return res.status(400).json({
+                    mensaje: "El nombre o el correo excede la longitud permitida."
+                });
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
+                return res.status(400).json({
+                    mensaje: "El correo electrónico no tiene un formato válido."
+                });
+            }
+            if (!["activo", "bloqueado", "baja"].includes(estadoFinal)) {
+                return res.status(400).json({
+                    mensaje: "El estado indicado no es válido."
+                });
+            }
+            const [roles] = await pool.execute(
+                "SELECT id_rol, nombre FROM roles WHERE id_rol = ?",
+                [idRol]
+            );
+            if (roles.length === 0) {
+                return res.status(400).json({
+                    mensaje: "El rol seleccionado no existe."
+                });
+            }
+            if (telefonoLimpio !== null && !/^\d{10}$/.test(telefonoLimpio)) {
+                return res.status(400).json({
+                    mensaje: "El teléfono debe contener exactamente 10 dígitos."
+                });
+            }
+            const [existentes] = await pool.execute(
+                "SELECT id_usuario FROM usuarios WHERE correo = ?",
+                [correoLimpio]
+            );
+            if (existentes.length > 0) {
+                return res.status(409).json({
+                    mensaje: "Ya existe un usuario registrado con ese correo."
+                });
+            }
+            const passwordHash = await argon2.hash(
+                password,
+                ARGON2_OPTIONS
+            );
+            conexion = await pool.getConnection();
+            await conexion.beginTransaction();
+            const [resultado] = await conexion.execute(
+                `INSERT INTO usuarios
+                    (nombre, correo, password_hash, id_rol, estado)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [nombreLimpio, correoLimpio, passwordHash, idRol, estadoFinal]
+            );
+            const idUsuario = resultado.insertId;
+            const nombreRol = String(roles[0].nombre).trim().toLowerCase();
+            if (nombreRol === "tutor") {
+                // Buscar tutores con el mismo correo y bloquear las filas encontradas mientras se realiza la transacción.
+                const [tutoresExistentes] = await conexion.execute(
+                    `SELECT id_tutor, id_usuario
+                    FROM tutores
+                    WHERE LOWER(TRIM(correo)) = LOWER(?)
+                    ORDER BY id_tutor
+                    FOR UPDATE`,
+                    [correoLimpio]
+                );
+                // Si alguno ya está vinculado a otra cuenta, cancelar toda la operación, incluido el usuario recién insertado.
+                const tutorVinculado = tutoresExistentes.find(
+                    tutor => tutor.id_usuario !== null
+                );
+                if (tutorVinculado) {
+                    const error = new Error(
+                        "Ya existe un tutor vinculado a una cuenta con ese correo."
+                    );
+                    error.code = "TUTOR_YA_VINCULADO";
+                    throw error;
+                }
+                if (tutoresExistentes.length > 0) {
+                    // Reutilizar el primer tutor que todavía no tiene cuenta.
+                    const idTutor = tutoresExistentes[0].id_tutor;
+                    const [actualizacion] = await conexion.execute(
+                        `UPDATE tutores
+                        SET id_usuario = ?, nombre = ?, correo = ?, telefono = ?
+                        WHERE id_tutor = ? AND id_usuario IS NULL`,
+                        [idUsuario, nombreLimpio, correoLimpio, telefonoLimpio, idTutor]
+                    );
+                    if (actualizacion.affectedRows !== 1) {
+                        const error = new Error(
+                            "No fue posible vincular el registro del tutor."
+                        );
+                        error.code = "TUTOR_YA_VINCULADO";
+                        throw error;
+                    }
+                } else {
+                    // No existe un tutor con ese correo: crear uno nuevo.
+                    await conexion.execute(
+                        `INSERT INTO tutores (id_usuario, nombre, correo, telefono)
+                        VALUES (?, ?, ?, ?)`,
+                        [idUsuario, nombreLimpio, correoLimpio, telefonoLimpio]
+                    );
+                }
+            }
+            await conexion.commit();
+            const [nuevoUsuario] = await conexion.execute(
+                `SELECT
+                    u.id_usuario AS id,
+                    u.id_usuario,
+                    u.nombre,
+                    u.correo,
+                    u.id_rol,
+                    r.nombre AS rol,
+                    u.estado,
+                    u.creado_en
+                 FROM usuarios u
+                 INNER JOIN roles r ON r.id_rol = u.id_rol
+                 WHERE u.id_usuario = ?`,
+                [idUsuario]
+            );
+            return res.status(201).json(nuevoUsuario[0]);
+        } catch (error) {
+            if (conexion) {
+                await conexion.rollback();
+            }
+            if (error.code === "TUTOR_YA_VINCULADO") {
+                return res.status(409).json({
+                    mensaje:
+                        "Ya existe un tutor vinculado a una cuenta con ese correo."
+                });
+            }
+            if (error.code === "ER_DUP_ENTRY") {
+                return res.status(409).json({
+                    mensaje: "Ya existe un usuario o tutor con esos datos únicos."
+                });
+            }
+            console.error("Error en POST /usuarios:", error);
+            return res.status(500).json({
+                mensaje: "Error interno al crear el usuario."
             });
+        } finally {
+            if (conexion) {
+                conexion.release();
+            }
         }
-        const nombreLimpio = nombre.trim();
-        const correoLimpio = correo.trim().toLowerCase();
-        const estadoFinal = estado ?? "activo";
-        if (nombreLimpio.length > 150 || correoLimpio.length > 254) {
-            return res.status(400).json({
-                mensaje: "El nombre o el correo excede la longitud permitida."
-            });
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
-            return res.status(400).json({
-                mensaje: "El correo electrónico no tiene un formato válido."
-            });
-        }
-        if (!["activo", "bloqueado", "baja"].includes(estadoFinal)) {
-            return res.status(400).json({
-                mensaje: "El estado indicado no es válido."
-            });
-        }
-        const [roles] = await pool.execute(
-            "SELECT id_rol FROM roles WHERE id_rol = ?",
-            [Number(id_rol)]
-        );
-        if (roles.length === 0) {
-            return res.status(400).json({
-                mensaje: "El rol seleccionado no existe."
-            });
-        }
-        const [existentes] = await pool.execute(
-            "SELECT id_usuario FROM usuarios WHERE correo = ?",
-            [correoLimpio]
-        );
-        if (existentes.length > 0) {
-            return res.status(409).json({
-                mensaje: "Ya existe un usuario registrado con ese correo."
-            });
-        }
-        const passwordHash = await argon2.hash(password, ARGON2_OPTIONS);
-        const [resultado] = await pool.execute(
-            `INSERT INTO usuarios
-                (nombre, correo, password_hash, id_rol, estado)
-             VALUES (?, ?, ?, ?, ?)`,
-            [nombreLimpio, correoLimpio, passwordHash, Number(id_rol), estadoFinal]
-        );
-        const [nuevoUsuario] = await pool.execute(
-            `SELECT
-                u.id_usuario AS id,
-                u.id_usuario,
-                u.nombre,
-                u.correo,
-                u.id_rol,
-                r.nombre AS rol,
-                u.estado,
-                u.creado_en
-             FROM usuarios u
-             INNER JOIN roles r ON r.id_rol = u.id_rol
-             WHERE u.id_usuario = ?`,
-            [resultado.insertId]
-        );
-
-        await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "usuarios", id_registro: resultado.insertId, valor_nuevo: { nombre: nombreLimpio, correo: correoLimpio, id_rol: Number(id_rol), estado: estadoFinal }, motivo: "Creación de usuario" });
-        return res.status(201).json(nuevoUsuario[0]);
-    } catch (error) {
-        if (error.code === "ER_DUP_ENTRY") {
-            return res.status(409).json({
-                mensaje: "Ya existe un usuario registrado con ese correo."
-            });
-        }
-
-        await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "usuarios", valor_nuevo: { nombre: req.body?.nombre, correo: req.body?.correo }, motivo: error.message });
-        console.error("Error en POST /usuarios:", error);
-        return res.status(500).json({
-            mensaje: "Error interno al crear el usuario."
-        });
     }
-});
+);
 
 app.get("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
