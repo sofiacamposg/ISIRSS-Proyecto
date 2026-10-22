@@ -212,7 +212,7 @@ export const ReportesPage = () => {
           <TarjetaResumen titulo="Con mediciones" valor={infantesConMediciones} descripcion="Infantes con al menos un registro" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TarjetaResumen titulo="Mediciones registradas" valor={mediciones.length} descripcion="Total histórico" />
+          <TarjetaResumen titulo="Mediciones disponibles" valor={mediciones.length} descripcion="Mediciones más recientes por infante" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TarjetaResumen titulo="Infantes con alertas" valor={alertasPendientes} descripcion="Sin mediciones o con medición pendiente" />
