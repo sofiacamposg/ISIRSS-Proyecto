@@ -35,3 +35,6 @@ lerna-debug.log*
 # Operating system files
 .DS_Store
 Thumbs.db
+
+Backend/backend.crt
+Backend/backend.key
