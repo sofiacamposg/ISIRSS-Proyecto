@@ -27,9 +27,9 @@ const ARGON2_OPTIONS = {
 
 //Creates a MySQL connection pool
 const pool = mysql.createPool({
-    host: '127.0.0.1',
+    host: '172.23.192.1',
     user: 'root',
-    password: '213111',
+    password: '12042203Y@yo',
     database: 'issste_padron'
 }).promise();
 
