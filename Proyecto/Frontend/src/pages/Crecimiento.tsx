@@ -1,21 +1,22 @@
 import { useState } from "react";
-import { useGetList } from "react-admin";
+import { useGetList, useGetManyReference } from "react-admin";
 import { Box, FormControl, InputLabel, MenuItem, Select, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,} from "@mui/material";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, } from "recharts";
 
 type Infante = {
   id: number;
-  nombre: string;
+  nombre_completo: string;
 };
 
 type Medicion = {
-  id: number;
-  infanteId: number;
-  fecha: string;
-  pesoKg: number;
-  tallaCm: number;
-  perimetroCefalicoCm?: number;
-  observaciones?: string;
+    id: number;
+    id_medicion: number;
+    id_infante: number;
+    fecha_medicion: string;
+    peso_kg: number;
+    talla_cm: number;
+    perimetro_cefalico_cm?: number | null;
+    observaciones?: string | null;
 };
 
 export function CrecimientoPage() {
@@ -26,43 +27,70 @@ export function CrecimientoPage() {
     error: errorInfantes,
   } = useGetList<Infante>("infantes", {
     pagination: { page: 1, perPage: 100 },
-    sort: { field: "nombre", order: "ASC" },
+    sort: { field: "nombre_completo", order: "ASC" },
   });
   const {
     data: mediciones = [],
     isPending: cargandoMediciones,
     error: errorMediciones,
-  } = useGetList<Medicion>("mediciones", {
+  } = useGetManyReference<Medicion>("mediciones", {
+    target: "id_infante",
+    id: infanteId === "" ? 0 : infanteId,
     pagination: { page: 1, perPage: 1000 },
-    sort: { field: "fecha", order: "ASC" },
+    sort: { field: "fecha_medicion", order: "ASC" },
+  }, {
+    enabled: infanteId !== "",
+  });
+  if (cargandoInfantes || (infanteId !== "" && cargandoMediciones)) {
+      return <Typography>Cargando información...</Typography>;
+  }
+  if (errorInfantes || (infanteId !== "" && errorMediciones)) {
+      return (
+          <Typography color="error">
+              No fue posible cargar los datos de crecimiento.
+          </Typography>
+      );
+  }
+  const medicionesInfante = [...mediciones].sort(
+    (a, b) =>
+      new Date(a.fecha_medicion).getTime() -
+      new Date(b.fecha_medicion).getTime()
+  );
+
+  const datosGrafica = medicionesInfante.map((m) => {
+    const fecha = new Date(m.fecha_medicion);
+    const pesoKg = Number(m.peso_kg);
+    const tallaCm = Number(m.talla_cm);
+
+    return {
+      id: m.id_medicion ?? m.id,
+      fecha: m.fecha_medicion,
+      fechaCorta: fecha.toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      }),
+      pesoKg,
+      tallaCm,
+      perimetroCefalicoCm:
+        m.perimetro_cefalico_cm == null
+          ? null
+          : Number(m.perimetro_cefalico_cm),
+      observaciones: m.observaciones,
+      imc:
+        tallaCm > 0
+          ? pesoKg / Math.pow(tallaCm / 100, 2)
+          : null,
+    };
   });
 
-  if (cargandoInfantes || cargandoMediciones) {
-    return <Typography>Cargando información...</Typography>;
-  }
+  console.log("Infante seleccionado:", infanteId);
+  console.log("Mediciones recibidas:", mediciones);
+  console.log("Cantidad de mediciones:", mediciones.length);
+  console.log("Datos de las gráficas:", datosGrafica);
 
-  if (errorInfantes || errorMediciones) {
-    return (
-      <Typography color="error">
-        No fue posible cargar los datos de crecimiento.
-      </Typography>
-    );
-  }
-  const medicionesInfante = mediciones.filter((m) => String(m.infanteId) === String(infanteId)).sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const datosGrafica = medicionesInfante.map((m) => ({
-    ...m,
-    fechaCorta: m.fecha.split("-").reverse().join("/"),
-    imc:
-      m.tallaCm > 0
-        ? m.pesoKg / Math.pow(m.tallaCm / 100, 2)
-        : null,
-  }));
-
-  function GraficaLinea({
-    titulo,
-    campo,
-    unidad,
-  }: {
+  function GraficaLinea({titulo, campo, unidad,}: {
     titulo: string;
     campo: "pesoKg" | "tallaCm" | "perimetroCefalicoCm";
     unidad: string;
@@ -105,8 +133,7 @@ export function CrecimientoPage() {
         Crecimiento infantil
       </Typography>
       <Typography sx={{ mb: 3 }} color="text.secondary">
-        Consulta la evolución de las mediciones registradas
-        para cada infante.
+        Consulta la evolución de las mediciones registradas para cada infante.
       </Typography>
       <FormControl fullWidth sx={{ mb: 3, maxWidth: 500 }}>
         <InputLabel id="infante-label">
@@ -119,7 +146,7 @@ export function CrecimientoPage() {
         >
           {infantes.map((infante) => (
             <MenuItem key={infante.id} value={infante.id}>
-              {infante.nombre}
+              {infante.nombre_completo}
             </MenuItem>
           ))}
         </Select>
@@ -179,14 +206,8 @@ export function CrecimientoPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 2 }}
-              >
-                El IMC es un cálculo descriptivo. En población
-                infantil, su interpretación depende de la edad,
-                el sexo y las referencias de crecimiento aprobadas.
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }} >
+                El IMC es un cálculo descriptivo. En población infantil, su interpretación depende de la edad, el sexo y las referencias de crecimiento aprobadas.
                 Esta pantalla no emite diagnósticos.
               </Typography>
             </>

@@ -23,7 +23,7 @@ import PreguntasFrecuentes from "./pages/PreguntasFrecuentes";
 import AvisoPrivacidad from "./pages/AvisoPrivacidad";
 import Ayuda from "./pages/Ayuda";
 
-//Icons
+//íconos
 import {
   PeopleOutline,
   StraightenOutlined,
@@ -35,6 +35,9 @@ import {
   MapOutlined,
   FlagOutlined,
   ApartmentOutlined,
+  FavoriteBorderOutlined,
+  PlaylistAddCheckOutlined,
+  ManageAccountsOutlined,
 } from "@mui/icons-material";
 
 import type { ThemeOptions } from "@mui/material";
@@ -181,6 +184,7 @@ function App() {
         create={CondicionesCreate}
         show={CondicionesShow}
         edit={CondicionesEdit}
+        icon={FavoriteBorderOutlined}
       />
       <Resource
         name="acciones_seguimiento"
@@ -189,6 +193,7 @@ function App() {
         create={AccionesCreate}
         show={AccionesShow}
         edit={AccionesEdit}
+        icon={PlaylistAddCheckOutlined}
       />
       <Resource
         name="crecimiento"
@@ -254,6 +259,7 @@ function App() {
         list={UsuariosList}
         create={UsuarioCreate}
         edit={UsuarioEdit}
+        icon={ManageAccountsOutlined}
       />
     </Admin>
   );
