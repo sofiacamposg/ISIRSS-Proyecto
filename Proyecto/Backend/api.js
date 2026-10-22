@@ -1264,20 +1264,111 @@ async function getListMediciones(collection, req, res) {
     res.json(data);
 }
 
+//Funcion especifica para mediciones en la pantalla de show /infantes
+async function getMedicionesPorInfante(req, res) {
+    const idInfante = Number(req.query.id);
+    if (!Number.isInteger(idInfante) || idInfante <= 0) {
+        return res.status(400).json({
+            error: "El ID del infante no es válido."
+        });
+    }
+    const inicio = Math.max(0, Number(req.query._start) || 0);
+    const finSolicitado = Number(req.query._end);
+    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
+    const limite = fin - inicio;
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    const [data] = await pool.execute(
+        `SELECT
+            m.id_medicion AS id,
+            m.id_medicion,
+            m.id_infante,
+            m.fecha_medicion,
+            m.peso_kg,
+            m.talla_cm,
+            m.perimetro_cefalico_cm,
+            m.observaciones
+         FROM mediciones_vigentes m
+         WHERE m.id_infante = ?
+         ORDER BY m.fecha_medicion ${sortOrder}, m.id_medicion ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [idInfante, limite, inicio]
+    );
+    const [total] = await pool.execute(
+        `SELECT COUNT(*) AS total
+         FROM mediciones_vigentes
+         WHERE id_infante = ?`,
+        [idInfante]
+    );
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.set("X-Total-Count", String(total[0].total));
+    return res.json(data);
+}
+
+//Funcion especifica para mediciones en la pantalla de show /infantes
+async function getMedicionesPorInfante(req, res) {
+    const idInfante = Number(req.query.id);
+    if (!Number.isInteger(idInfante) || idInfante <= 0) {
+        return res.status(400).json({
+            error: "El ID del infante no es válido."
+        });
+    }
+    const inicio = Math.max(0, Number(req.query._start) || 0);
+    const finSolicitado = Number(req.query._end);
+    const fin = Number.isFinite(finSolicitado) && finSolicitado > inicio ? finSolicitado : inicio + 10;
+    const limite = fin - inicio;
+    const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    const [data] = await pool.execute(
+        `SELECT
+            m.id_medicion AS id,
+            m.id_medicion,
+            m.id_infante,
+            m.fecha_medicion,
+            m.peso_kg,
+            m.talla_cm,
+            m.perimetro_cefalico_cm,
+            m.observaciones
+         FROM mediciones_vigentes m
+         WHERE m.id_infante = ?
+         ORDER BY m.fecha_medicion ${sortOrder}, m.id_medicion ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [idInfante, limite, inicio]
+    );
+    const [total] = await pool.execute(
+        `SELECT COUNT(*) AS total
+         FROM mediciones_vigentes
+         WHERE id_infante = ?`,
+        [idInfante]
+    );
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.set("X-Total-Count", String(total[0].total));
+    return res.json(data);
+}
+
 app.get("/mediciones", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
+        if (req.query.target === "id_infante") {
+            return await getMedicionesPorInfante(req, res);
+        }
 
         if ("target" in req.query) {
-            await getManyReference("mediciones", req, res);
-        } else if ("id" in req.query) {
-            await getMany("mediciones", req, res);
-        } else {
-            await getListMediciones("mediciones", req, res);
+            return await getManyReference("mediciones", req, res);
         }
+
+        if ("id" in req.query) {
+            return await getMany("mediciones", req, res);
+        }
+
+        // No modificar: otras pantallas usan esta consulta.
+        return await getListMediciones("mediciones", req, res);
 
     } catch (error) {
         console.error("Error en GET /mediciones:", error);
-        res.status(500).json({ error: error.message });
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                error: "Error al consultar las mediciones."
+            });
+        }
     }
 });
 
