@@ -298,17 +298,38 @@ app.get("/tutores/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListInfantes(collection, req, res) {
+
+    //Obtener infantes específicos para ReferenceField / getMany
+    if (req.query.id) {
+        const ids = Array.isArray(req.query.id)
+            ? req.query.id
+            : [req.query.id];
+
+        const placeholders = ids.map(() => "?").join(",");
+
+        const [data] = await pool.execute(
+            `SELECT
+                i.id_infante AS id,
+                i.matricula,
+                CONCAT_WS(' ',
+                    i.nombre,
+                    i.apellido_paterno,
+                    i.apellido_materno
+                ) AS nombre_completo
+             FROM infantes i
+             WHERE i.id_infante IN (${placeholders})`,
+            ids
+        );
+
+        return res.json(data);
+    }
+
     let sortBy = req.query._sort || "id_infante";
     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
     let limite = fin - inicio;
-
-    // Validar la columna por la que se ordenará
-    if (true) {
-        sortBy = "id_infante";
-    }
 
     // Consultar registros
     // Consultar una sola fila por infante
@@ -904,6 +925,27 @@ app.put("/infantes/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListRegiones(collection, req, res) {
+    // Si React Admin solicita regiones por ID,
+    // devolver únicamente las regiones solicitadas.
+    if (req.query.id) {
+        const ids = Array.isArray(req.query.id)
+            ? req.query.id
+            : [req.query.id];
+
+        const placeholders = ids.map(() => "?").join(",");
+
+        const [data] = await pool.execute(
+            `SELECT
+                r.id_region AS id,
+                r.nombre AS nombre_region
+             FROM regiones r
+             WHERE r.id_region IN (${placeholders})`,
+            ids
+        );
+
+        return res.json(data);
+    }
+
     let sortBy = req.query._sort || "id_region";
     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
@@ -946,8 +988,10 @@ app.get("/regiones", async (req, res) => {
         // await jwt.verify(token, "admin123");
 
         if ("target" in req.query) {
+            console.log("estoy entrando a donde no deberia1");
             await getManyReference("regiones", req, res);
         } else if ("id_region" in req.query) {
+            console.log("estoy entrando a donde no deberia2");
             await getMany("regiones", req, res);
         } else {
             await getListRegiones("regiones", req, res);
@@ -994,11 +1038,6 @@ async function getListEstados(collection, req, res) {
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
     let limite = fin - inicio;
-
-    // Validar la columna por la que se ordenará
-    if (true) {
-        sortBy = "id_estado";
-    }
 
     // Consultar registros
     let [data] = await pool.execute(
@@ -1073,6 +1112,33 @@ app.get("/estados/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListEbdi(collection, req, res) {
+
+    //Obtener EBDI específicos para ReferenceField / getMany
+    if (req.query.id) {
+        const ids = Array.isArray(req.query.id)
+            ? req.query.id
+            : [req.query.id];
+
+        const placeholders = ids.map(() => "?").join(",");
+
+        const [data] = await pool.execute(
+            `SELECT
+                e.id_ebdi AS id,
+                e.nombre AS nombre_ebdi,
+                e.id_estado,
+                e.clave,
+                e.activa AS activo,
+                es.nombre AS nombre_estado
+             FROM ebdi e
+             LEFT JOIN estados es
+                ON e.id_estado = es.id_estado
+             WHERE e.id_ebdi IN (${placeholders})`,
+            ids
+        );
+
+        return res.json(data);
+    }
+
     let sortBy = req.query._sort || "id_ebdi";
     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
@@ -1776,6 +1842,33 @@ app.put("/mediciones/:id", async (req, res) => {
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListSeguimientos(collection, req, res) {
+
+    //Obtener seguimientos específicos para ReferenceField / getMany
+    if (req.query.id) {
+        const ids = Array.isArray(req.query.id)
+            ? req.query.id
+            : [req.query.id];
+
+        const placeholders = ids.map(() => "?").join(",");
+
+        const [data] = await pool.execute(
+            `SELECT
+                s.id_seguimiento AS id,
+                s.id_seguimiento,
+                s.id_infante,
+                s.id_condicion,
+                s.fecha_apertura,
+                s.motivo,
+                s.estado,
+                s.fecha_cierre
+             FROM seguimientos s
+             WHERE s.id_seguimiento IN (${placeholders})`,
+            ids
+        );
+
+        return res.json(data);
+    }
+
     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
     let inicio = Number(req.query._start) || 0;
@@ -1790,7 +1883,7 @@ async function getListSeguimientos(collection, req, res) {
             : req.query.filter;
     }
 
-    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"]);
+    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante);
 
     let where = "";
     let parametros = [];
@@ -1798,11 +1891,6 @@ async function getListSeguimientos(collection, req, res) {
     if (Number.isInteger(idInfante) && idInfante > 0) {
         where = "WHERE s.id_infante = ?";
         parametros.push(idInfante);
-    }
-
-    if (filtro.id_infante) {
-        where = "WHERE s.id_infante = ?";
-        parametros.push(filtro.id_infante);
     }
 
     const [data] = await pool.execute(
@@ -2321,7 +2409,7 @@ async function getListCondiciones(req, res) {
             : req.query.filter;
     }
 
-    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"]);
+    const idInfante = Number(filtro.id_infante ?? req.query["filter[id_infante]"] ?? req.query.id_infante);
 
     let where = "";
     let parametros = [];
