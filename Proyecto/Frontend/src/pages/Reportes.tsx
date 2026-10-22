@@ -308,15 +308,15 @@ export const ReportesPage = () => {
       </Typography>
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {[
-          "Sin seguimiento",
-          "Requiere seguimiento",
-          "En seguimiento",
-          "Seguimiento concluido",
-        ].map((estado) => (
-          <Grid key={estado} size={{ xs: 12, sm: 6, md: 3 }}>
+          { clave: "sin_seguimiento", titulo: "Sin seguimiento" },
+          { clave: "requiere_seguimiento", titulo: "Requiere seguimiento" },
+          { clave: "en_seguimiento", titulo: "En seguimiento" },
+          { clave: "concluido", titulo: "Seguimiento concluido" },
+        ].map(({ clave, titulo }) => (
+          <Grid key={clave} size={{ xs: 12, sm: 6, md: 3 }}>
             <TarjetaResumen
-              titulo={estado}
-              valor={conteoEstados[estado] || 0}
+              titulo={titulo}
+              valor={conteoEstados[clave] || 0}
               descripcion="Casos en el filtro actual"
             />
           </Grid>
