@@ -2,14 +2,7 @@ import { AppBar, Toolbar, Box, Typography, IconButton, Divider, Avatar } from "@
 
 import { RefreshOutlined, PersonOutline } from "@mui/icons-material";
 
-import {
-  SidebarToggleButton,
-  useGetIdentity,
-  usePermissions,
-  ToggleThemeButton,
-  UserMenu,
-  Logout,
-} from "react-admin";
+import { SidebarToggleButton, useGetIdentity, usePermissions, ToggleThemeButton, UserMenu, Logout } from "react-admin";
 
 import logoMex from "../assets/Logo_mex.png";
 
@@ -35,13 +28,7 @@ export default function Header() {
         position="sticky"
         elevation={0}
         className="app-header"
-        sx={{
-            backgroundColor: "background.paper",
-            color: "primary.main",
-            borderBottom: "3px solid",
-            borderColor: "primary.main",
-        }}
-    >
+        sx={{ backgroundColor: "background.paper", color: "primary.main", borderBottom: "3px solid", borderColor: "primary.main", }}>
       <Toolbar className="app-header-toolbar">
 
         {/* Botón para abrir/cerrar sidebar */}

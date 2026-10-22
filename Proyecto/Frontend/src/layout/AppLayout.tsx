@@ -11,7 +11,7 @@ export default function AppLayout({ children, ...props }: LayoutProps) {
       <Box sx={{ px: { xs: 2, md: 3 } }}>
         {/* título de la página: React-Admin lo llena según la página actual */}
         <TitlePortal component="h1" variant="h4"
-          sx={{ color: "text.primary", fontWeight: 700, flex: "none", whiteSpace: "normal", mt: 2, mb: 1 }} />
+          sx={{ color: "text.primary", fontWeight: 700, flex: "none", whiteSpace: "normal", mt: 2, mb: 1, "&:empty": { display: "none" } }} />
         {children}
       </Box>
       <Footer />

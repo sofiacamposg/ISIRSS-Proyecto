@@ -14,11 +14,7 @@ export default function PaginaInstitucional({
 }: Props) {
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto", p: 3 }}>
-      <Typography
-        variant="h4"
-        fontWeight={700}
-        gutterBottom
-      >
+      <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
         {titulo}
       </Typography>
 
@@ -28,13 +24,7 @@ export default function PaginaInstitucional({
 
       <Paper
         variant="outlined"
-        sx={{
-          p: { xs: 2, md: 4 },
-          borderRadius: 2,
-          bgcolor: "background.paper",
-          color: "text.primary",
-        }}
-      >
+        sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, bgcolor: "background.paper", color: "text.primary",}}>
         {children}
       </Paper>
     </Box>
