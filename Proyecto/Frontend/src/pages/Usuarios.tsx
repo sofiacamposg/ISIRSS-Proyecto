@@ -1,11 +1,25 @@
-import {List, Datagrid, TextField, EmailField, DateField, FunctionField, Create, SimpleForm, TextInput, SelectInput, ReferenceInput, required, minLength, maxLength, Edit} from "react-admin";
+import {List, Datagrid, TextField, EmailField, DateField, FunctionField, Create, SimpleForm, TextInput, SelectInput, ReferenceInput, required, minLength, maxLength, Edit, SelectField} from "react-admin";
 
+// roles del sistema
+const rolesUsuario = [
+    {id:"administrador", name:"Administrador" },
+    {id:"coordinador_regional", name:"Coordinador regional" },
+    {id:"estancia", name:"Personal de EBDI" },
+    {id:"tutor", name:"Tutor" },
+];
+
+// estados de la cuenta
+const estadosCuenta = [
+    {id:"activo", name:"Activo" },
+    {id:"bloqueado", name:"Bloqueado" },
+    {id:"baja", name:"Baja" },
+];
 // Filtros de la lista de usuarios
 const usuarioFilters = [
     <TextInput key="nombre" source="nombre" label="Nombre completo" />,
     <TextInput key="correo" source="correo" label="Correo electrónico" alwaysOn />,
-    <ReferenceInput key="id_rol" source="id_rol" reference="roles" label="Rol" >
-        <SelectInput optionText="nombre" emptyText="Todos los roles" />
+    <ReferenceInput key="id_rol" source="id_rol" reference="roles" >
+        <SelectInput label="Rol" optionText="nombre" emptyText="Todos los roles" />
     </ReferenceInput>,
     <SelectInput key="estado" source="estado" label="Estado" choices={[
             { id: "activo", name: "Activo" },
@@ -22,8 +36,8 @@ export const UsuariosList = () => (
             <TextField source="id_usuario" label="ID" />
             <TextField source="nombre" label="Nombre completo" />
             <EmailField source="correo" label="Correo electrónico" />
-            <TextField source="rol" label="Rol" />
-            <TextField source="estado" label="Estado" />
+            <SelectField source="rol" label="Rol" choices={rolesUsuario} />
+            <SelectField source="estado" label="Estado" choices={estadosCuenta} />
             <DateField source="creado_en" label="Fecha de registro" showTime />
         </Datagrid>
     </List>
@@ -52,8 +66,8 @@ export const UsuarioCreate = () => (
                 ]}
                 fullWidth
             />
-            <ReferenceInput source="id_rol" reference="roles" label="Rol del usuario">
-                <SelectInput optionText="nombre" label="Rol" validate={required("Selecciona un rol")} fullWidth/>
+            <ReferenceInput source="id_rol" reference="roles">
+                <SelectInput label="Rol del usuario" optionText="nombre" validate={required("Selecciona un rol")} fullWidth/>
             </ReferenceInput>
             <SelectInput source="estado" label="Estado de la cuenta"
                 choices={[
@@ -86,8 +100,8 @@ export const UsuarioEdit = () => (
                 fullWidth
             />
             <TextInput source="password" label="Nueva contraseña (opcional)" type="password" autoComplete="new-password" helperText="Déjalo vacío para conservar la contraseña actual." fullWidth />
-            <ReferenceInput source="id_rol" reference="roles" label="Rol del usuario" >
-                <SelectInput optionText="nombre" validate={required("Selecciona un rol")} fullWidth />
+            <ReferenceInput source="id_rol" reference="roles" >
+                <SelectInput label="Rol del usuario" optionText="nombre" validate={required("Selecciona un rol")} fullWidth />
             </ReferenceInput>
             <SelectInput source="estado" label="Estado de la cuenta" choices={[
                     { id: "activo", name: "Activo" },
