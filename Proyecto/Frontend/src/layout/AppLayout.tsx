@@ -10,9 +10,9 @@ export default function AppLayout({ children, ...props }: LayoutProps) {
   
   const { pathname } = useLocation(); // dirección de la página actual
 
-  // cada vez que cambia la página, mover el foco al título h1
-  // usuarios de teclado o lector de pantalla comienzan en el contenido y no en el menú
-
+  // IA -- Propuesto con apoyo de IA (Claude), se aplicó y se verificó manualmente con teclado y Narrador
+  // Cada vez que cambia la página, mueve el foco al título h1 para que
+  // quien usa teclado o lector de pantalla empiece en el contenido y no en el menú
   useEffect(() => {
     const titulo = document.getElementById("react-admin-title");
     if (titulo) {

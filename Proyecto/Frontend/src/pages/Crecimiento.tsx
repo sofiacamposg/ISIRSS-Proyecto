@@ -41,16 +41,22 @@ export function CrecimientoPage() {
   }, {
     enabled: infanteId !== "",
   });
-  if (cargandoInfantes || (infanteId !== "" && cargandoMediciones)) {
-      return <Typography>Cargando información...</Typography>;
+
+  if (cargandoInfantes) {
+      return <Typography role="status">Cargando información...</Typography>;
   }
-  if (errorInfantes || (infanteId !== "" && errorMediciones)) {
+  if (errorInfantes) {
       return (
-          <Typography color="error">
-              No fue posible cargar los datos de crecimiento.
+          <Typography role="alert" color="error">
+            No fue posible cargar los datos de crecimiento. Recarga la página o intenta más tarde.
           </Typography>
       );
   }
+  // IA -- Propuesto con apoyo de IA (Claude)
+  // La carga de mediciones ya no reemplaza la página, el selector se queda y no pierde el foco
+  const cargandoSeleccion = infanteId !== "" && cargandoMediciones;
+  const errorSeleccion = infanteId !== "" && errorMediciones;
+  
   const medicionesInfante = [...mediciones].sort(
     (a, b) =>
       new Date(a.fecha_medicion).getTime() -
@@ -84,11 +90,13 @@ export function CrecimientoPage() {
           : null,
     };
   });
-
+  
+  /*
   console.log("Infante seleccionado:", infanteId);
   console.log("Mediciones recibidas:", mediciones);
   console.log("Cantidad de mediciones:", mediciones.length);
   console.log("Datos de las gráficas:", datosGrafica);
+  */
 
   function GraficaLinea({titulo, campo, unidad,}: {
     titulo: string;
@@ -107,7 +115,7 @@ export function CrecimientoPage() {
     const idTitulo = `titulo-grafica-${campo}`; // id para conectar sección con su título
     return (
       <Paper component="section" aria-labelledby= {idTitulo} sx={{ p: 2, minWidth: 0 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
+        <Typography id={idTitulo} variant="h6" component="h2" gutterBottom>
           {titulo}
         </Typography>
         {datos.length === 0 ? (
@@ -159,7 +167,16 @@ export function CrecimientoPage() {
           ))}
         </Select>
       </FormControl>
-      {infanteId === "" ? (
+      {cargandoSeleccion && (
+        <Typography role="status" sx={{ mb: 3}}>Cargando mediciones...</Typography>
+      )}
+      {errorSeleccion && (
+        <Typography role="alert" color="error" sx={{ mb: 3 }}>
+          No fue posible cargar las mediciones. Intenta de nuevo.
+        </Typography>
+      )}
+      
+      {!cargandoSeleccion && !errorSeleccion && (infanteId === "" ? (
         <Typography>
           Selecciona un infante para consultar sus gráficas.
         </Typography>
@@ -227,7 +244,7 @@ export function CrecimientoPage() {
             </>
           )}
         </>
-      )}
+      ))}
     </Box>
   );
 }
