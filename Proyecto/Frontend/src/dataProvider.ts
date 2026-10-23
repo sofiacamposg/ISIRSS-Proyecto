@@ -51,4 +51,21 @@ export const dataProvider = {
       total,
     };
   },
+
+  // Autorizar o revocar una relación tutor-infante mediante PATCH.
+    update: async (resource, params) => {
+        if (resource !== "infante_tutor") {
+            return baseDataProvider.update(resource, params);
+        }
+        const url =`${import.meta.env.VITE_BACKEND}/infante_tutor/` + encodeURIComponent(String(params.id));
+        const { json } = await fetchJsonUtil(url, {
+            method: "PATCH",
+            body: JSON.stringify({
+                acceso_autorizado: params.data.acceso_autorizado,
+            }),
+        });
+        return {
+            data: json,
+        };
+    },
 };

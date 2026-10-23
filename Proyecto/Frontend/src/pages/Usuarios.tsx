@@ -1,4 +1,4 @@
-import {List, Datagrid, TextField, EmailField, DateField, FunctionField, Create, SimpleForm, TextInput, SelectInput, ReferenceInput, required, minLength, maxLength, Edit, SelectField} from "react-admin";
+import {List, Datagrid, TextField, EmailField, DateField, FunctionField, Create, SimpleForm, TextInput, SelectInput, ReferenceInput, required, minLength, maxLength, Edit, SelectField, FormDataConsumer} from "react-admin";
 
 // roles del sistema
 const rolesUsuario = [
@@ -78,10 +78,23 @@ export const UsuarioCreate = () => (
                 validate={required("Selecciona un estado")}
                 fullWidth
             />
+            <FormDataConsumer>
+                {({ formData }) =>
+                    String(formData.id_rol) === "4" ? (
+                        <TextInput source="telefono" label="Teléfono del tutor" type="tel" autoComplete="tel" helperText="Opcional. Ingresa 10 dígitos, por ejemplo 5512345678."
+                            validate={(value) => {
+                                if (!value || !value.trim()) {
+                                    return undefined;
+                                }
+                                return /^\d{10}$/.test(value.trim()) ? undefined : "Ingresa un teléfono de exactamente 10 dígitos.";
+                            }}
+                            fullWidth
+                        />) : null
+                }
+            </FormDataConsumer>
         </SimpleForm>
     </Create>
 );
-
 
 export const UsuarioEdit = () => (
     <Edit title="Editar usuario">

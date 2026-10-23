@@ -15,6 +15,7 @@ import { CrecimientoPage } from "./pages/Crecimiento";
 import { AlertasList } from "./pages/Alertas";
 import { ReportesPage } from "./pages/Reportes";
 import { UsuariosList, UsuarioCreate, UsuarioEdit } from "./pages/Usuarios";
+import { AutorizacionesList } from "./pages/Authorizaciones";
 import AppLayout from "./layout/AppLayout";
 //Imports para los links del Footer
 import { CustomRoutes } from "react-admin";
@@ -233,6 +234,12 @@ function App() {
         show={TutoresShow}
         options={{ label: "Tutores" }}
         icon={BadgeOutlined}
+      />
+
+      <Resource
+        name="infante_tutor"
+        list={AutorizacionesList}
+        options={{ label: "Autorizaciones" }}
       />
 
       <Resource
