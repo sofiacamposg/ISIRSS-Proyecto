@@ -38,3 +38,5 @@ Thumbs.db
 
 Backend/backend.crt
 Backend/backend.key
+Frontend/backend.crt
+Frontend/backend.key
