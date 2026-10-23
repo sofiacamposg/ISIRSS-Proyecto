@@ -118,6 +118,27 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
         const correo = filtro.correo ?? req.query["filter[correo]"] ?? req.query.correo;
         const condiciones = [];
         const parametros = [];
+        // Restringir los tutores de una estancia a su propia EBDI.
+        if (req.usuario?.rol === "estancia") {
+            const idEbdiUsuario = await obtenerEbdiUsuario(req.usuario.id_usuario);
+            if (idEbdiUsuario === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una EBDI asignada."
+                });
+            }
+            condiciones.push(`
+                EXISTS (
+                    SELECT 1
+                    FROM infante_tutor it
+                    INNER JOIN infantes i
+                        ON i.id_infante = it.id_infante
+                    WHERE it.id_tutor = tutores.id_tutor
+                    AND i.id_ebdi = ?
+                )
+            `);
+            parametros.push(idEbdiUsuario);
+        }
+        //Filtros normales
         if (nombre && String(nombre).trim() !== "") {
             condiciones.push("nombre LIKE ?");
             parametros.push(`%${String(nombre).trim()}%`);
@@ -130,6 +151,7 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
             condiciones.push("correo LIKE ?");
             parametros.push(`%${String(correo).trim()}%`);
         }
+        //Aplicacion de los filtros
         const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
         const [data] = await pool.execute(
             `SELECT
@@ -206,27 +228,47 @@ app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (
 });
 
 async function getOneTutor(collection, id, req, res) {
-    let [data] = await pool.execute(
-        `SELECT
-            id_tutor AS id,
-            id_tutor,
-            nombre as nombre_tutor,
-            telefono,
-            correo,
-            id_usuario
-        FROM tutores
-
-        WHERE id_tutor = ?`,
-        [id]
-    );
-
+    let sql = `
+        SELECT
+            t.id_tutor AS id,
+            t.id_tutor,
+            t.nombre AS nombre_tutor,
+            t.telefono,
+            t.correo,
+            t.id_usuario
+        FROM tutores t
+        WHERE t.id_tutor = ?
+    `;
+    const parametros = [id];
+    // Restringir la consulta individual para usuarios de estancia.
+    if (req.usuario?.rol === "estancia") {
+        const idEbdiUsuario = await obtenerEbdiUsuario(
+            req.usuario.id_usuario
+        );
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM infante_tutor it
+                INNER JOIN infantes i
+                    ON i.id_infante = it.id_infante
+                WHERE it.id_tutor = t.id_tutor
+                  AND i.id_ebdi = ?
+            )
+        `;
+        parametros.push(idEbdiUsuario);
+    }
+    const [data] = await pool.execute(sql, parametros);
     if (data.length === 0) {
-        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: collection, id_registro: id, motivo: "Tutor no encontrado" });
+        await registrarBitacora(req, {accion: "READ_FALLIDO", entidad: collection, id_registro: id, motivo: "Tutor no encontrado o fuera del ámbito autorizado"});
         return res.sendStatus(404);
     }
-
-    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: collection, id_registro: id, valor_nuevo: data[0] });
-    res.json(data[0]);
+    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: collection, id_registro: id, valor_nuevo: data[0]});
+    return res.json(data[0]);
 }
 
 app.get("/tutores/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
@@ -257,6 +299,19 @@ async function tutorTieneAccesoInfante(idUsuario, idInfante) {
     return relaciones.length > 0;
 }
 
+    //relacionar ebdis con infantes
+    async function obtenerEbdiUsuario(idUsuario) {
+        const [ambitos] = await pool.execute(
+            `SELECT id_ebdi
+            FROM usuario_ambito
+            WHERE id_usuario = ?
+            AND id_ebdi IS NOT NULL
+            LIMIT 1`,
+            [idUsuario]
+        );
+        return ambitos.length > 0 ? Number(ambitos[0].id_ebdi) : null;
+    }
+
 async function getListInfantes(collection, req, res) {
     // Obtener infantes específicos para ReferenceField / getMany    
     if (req.query.id) {
@@ -275,6 +330,17 @@ async function getListInfantes(collection, req, res) {
             WHERE i.id_infante IN (${placeholders})
         `;
         const parametrosId = [...ids];
+        // Las EBDIS solo pueden consultar infantes autorizados.
+        if (req.usuario?.rol === "estancia") {
+            const idEbdiUsuario = await obtenerEbdiUsuario(req.usuario.id_usuario);
+            if (idEbdiUsuario === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una EBDI asignada."
+                });
+            }
+            sql += " AND i.id_ebdi = ?";
+            parametrosId.push(idEbdiUsuario);
+        }
         // Los tutores solo pueden consultar infantes autorizados.
         if (req.usuario?.rol === "tutor") {
             sql += `
@@ -397,8 +463,18 @@ async function getListInfantes(collection, req, res) {
                 AND it.acceso_autorizado = TRUE
             )
         `);
-
         parametros.push(req.usuario.id_usuario);
+    }
+    // Filtros para las estancias
+    if (req.usuario?.rol === "estancia") {
+        const idEbdiUsuario = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        condiciones.push("i.id_ebdi = ?");
+        parametros.push(idEbdiUsuario);
     }
     const whereSQL = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
     // Consultar infantes, conservando los datos originales
@@ -518,7 +594,18 @@ async function createInfante(req, res) {
             error: "Faltan datos obligatorios"
         });
     }
+    let idEbdiAsignada = null;
+    if (req.usuario?.rol === "estancia") {
+        idEbdiAsignada = await obtenerEbdiUsuario(
+            req.usuario.id_usuario
+        );
 
+        if (idEbdiAsignada === null) {
+            return res.status(403).json({
+                error: "El usuario no tiene una EBDI asignada."
+            });
+        }
+    }
     const connection = await pool.getConnection();
 
     try {
@@ -539,7 +626,7 @@ async function createInfante(req, res) {
                 error: "El tutor seleccionado no existe"
             });
         }
-
+        const idEbdiFinal = req.usuario.rol === "estancia" ? idEbdiAsignada : id_ebdi;
         // Crear el infante.
         const [resultado] = await connection.execute(
             `INSERT INTO infantes (
@@ -565,7 +652,7 @@ async function createInfante(req, res) {
                 fecha_nacimiento,
                 sexo_patron,
                 fecha_ingreso,
-                id_ebdi,
+                idEbdiFinal,
                 activo ?? true,
                 restricciones_nutricionales || null,
                 creado_por
@@ -644,6 +731,30 @@ async function getOneInfante(collection, id, req, res) {
         );
 
         if (!tieneAcceso) {
+            return res.sendStatus(404);
+        }
+    }
+    if (req.usuario?.rol === "estancia") {
+        const idEbdiUsuario = await obtenerEbdiUsuario(
+            req.usuario.id_usuario
+        );
+
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+
+        const [infantes] = await pool.execute(
+            `SELECT id_infante
+            FROM infantes
+            WHERE id_infante = ?
+            AND id_ebdi = ?
+            LIMIT 1`,
+            [id, idEbdiUsuario]
+        );
+
+        if (infantes.length === 0) {
             return res.sendStatus(404);
         }
     }
@@ -734,7 +845,6 @@ function convertirFecha(fecha) {
 
 async function updateInfante(req, res) {
     const id = Number(req.params.id);
-
     const {
         matricula,
         nombre,
@@ -755,6 +865,32 @@ async function updateInfante(req, res) {
         return res.status(400).json({
             error: "El ID del infante no es válido."
         });
+    }
+
+    let idEbdiUsuario = null;
+    if (req.usuario?.rol === "estancia") {
+        idEbdiUsuario = await obtenerEbdiUsuario(
+            req.usuario.id_usuario
+        );
+
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                error: "El usuario no tiene una EBDI asignada."
+            });
+        }
+
+        const [infantes] = await pool.execute(
+            `SELECT id_infante
+            FROM infantes
+            WHERE id_infante = ?
+            AND id_ebdi = ?
+            LIMIT 1`,
+            [id, idEbdiUsuario]
+        );
+
+        if (infantes.length === 0) {
+            return res.sendStatus(404);
+        }
     }
 
     // Aceptar booleanos y sus representaciones habituales
@@ -811,6 +947,8 @@ async function updateInfante(req, res) {
             });
         }
 
+        // Constante para EBDI 
+        const idEbdiFinal = req.usuario.rol === "estancia" ? idEbdiUsuario : id_ebdi;
         // Actualizar los datos del infante
         const [resultado] = await conexion.execute(
             `UPDATE infantes
@@ -832,7 +970,7 @@ async function updateInfante(req, res) {
                 apellido_materno?.trim() || null,
                 convertirFecha(fecha_nacimiento),
                 sexo_patron,
-                id_ebdi,
+                idEbdiFinal,
                 convertirFecha(fecha_ingreso),
                 activo,
                 restricciones_nutricionales?.trim() || null,
@@ -1345,6 +1483,24 @@ async function getListMediciones(collection, req, res) {
     // Construir filtros SQL
     const condiciones = [];
     const parametros = [];
+    // Limitar las mediciones a los infantes de la EBDI del usuario.
+    if (req.usuario?.rol === "estancia") {
+        const idEbdiUsuario = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM infantes i
+                WHERE i.id_infante = m.id_infante
+                AND i.id_ebdi = ?
+            )
+        `);
+        parametros.push(idEbdiUsuario);
+    }
     if (idInfante !== undefined && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
         condiciones.push("m.id_infante = ?");
         parametros.push(Number(idInfante));
@@ -1373,8 +1529,9 @@ async function getListMediciones(collection, req, res) {
             LIMIT 1
         )
     `;
+    const rol = String(req.usuario.rol).trim().toLowerCase();
     // Para la vista del usuario tipo tutor
-    if (req.usuario?.rol === "tutor") {
+    if (rol === "tutor") {
         condiciones.push(`
             EXISTS (
                 SELECT 1
@@ -1387,6 +1544,24 @@ async function getListMediciones(collection, req, res) {
             )
         `);
         parametros.push(req.usuario.id_usuario);
+    }
+    //Para la vista del usuario tipo estancia
+    if (rol === "estancia") {
+        const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (!idEbdi) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM infantes i
+                WHERE i.id_infante = m.id_infante
+                AND i.id_ebdi = ?
+            )
+        `);
+        parametros.push(idEbdi);
     }
     const where = `WHERE ${condicionUltimaMedicion} ${condiciones.length > 0 ? "AND " + condiciones.join(" AND ") : ""}`;
     // Consultar mediciones filtradas
@@ -1440,6 +1615,27 @@ async function getMedicionesPorInfante(req, res) {
         return res.status(400).json({
             error: "El ID del infante no es válido."
         });
+    }
+    // Una estancia solo puede consultar mediciones de sus propios infantes.
+    if (req.usuario?.rol === "estancia") {
+        const idEbdiUsuario = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        const [infantes] = await pool.execute(
+            `SELECT id_infante
+            FROM infantes
+            WHERE id_infante = ?
+            AND id_ebdi = ?`,
+            [idInfante, idEbdiUsuario]
+        );
+        if (infantes.length === 0) {
+            return res.status(404).json({
+                mensaje: "No se encontraron mediciones para este infante."
+            });
+        }
     }
     // Paginacion y ordenamiento
     const inicio = Math.max(0, Number(req.query._start) || 0);
@@ -1495,9 +1691,6 @@ app.get("/mediciones", autenticarUsuario, autorizarRoles("administrador", "coord
         // Lista general de mediciones, con filtro de autorización para tutores.
         return await getListMediciones("mediciones", req, res);
 
-        // No modificar: otras pantallas usan esta consulta.
-        return await getListMediciones("mediciones", req, res);
-
     } catch (error) {
         await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "mediciones", motivo: error.message });
         console.error("Error en GET /mediciones:", error);
@@ -1533,9 +1726,19 @@ async function createMedicion(req, res) {
         });
     }
 
+    let idEbdiUsuario = null;
+    if (req.usuario?.rol === "estancia") {
+        idEbdiUsuario = await obtenerEbdiUsuario(creado_por);
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                error: "El usuario no tiene una EBDI asignada."
+            });
+        }
+    }
+
     if (
         !id_infante ||
-        !id_ebdi_captura ||
+        (req.usuario?.rol !== "estancia" && !id_ebdi_captura) ||
         !fecha_medicion ||
         peso_kg == null ||
         talla_cm == null ||
@@ -1582,9 +1785,10 @@ async function createMedicion(req, res) {
 
         // Obtener los datos del infante que se conservarán en la versión.
         const [infantes] = await connection.execute(
-            `SELECT fecha_nacimiento, sexo_patron
+            `SELECT fecha_nacimiento, sexo_patron, id_ebdi
              FROM infantes
-             WHERE id_infante = ?`,
+             WHERE id_infante = ?
+             FOR UPDATE`,
             [id_infante]
         );
 
@@ -1595,8 +1799,15 @@ async function createMedicion(req, res) {
             });
         }
 
-        const infante = infantes[0];
+        if (req.usuario?.rol === "estancia" && Number(infantes[0].id_ebdi) !== idEbdiUsuario) {
+            await connection.rollback();
+            return res.status(404).json({
+                error: "El infante seleccionado no existe o no pertenece a tu EBDI."
+            });
+        }
 
+        const infante = infantes[0];
+        const idEbdiCapturaFinal = req.usuario?.rol === "estancia" ? idEbdiUsuario : id_ebdi_captura;
         // Crear el registro principal de la medición.
         const [resultado] = await connection.execute(
             `INSERT INTO mediciones (
@@ -1604,7 +1815,7 @@ async function createMedicion(req, res) {
                 id_ebdi_captura,
                 creado_por
             ) VALUES (?, ?, ?)`,
-            [id_infante, id_ebdi_captura, creado_por]
+            [id_infante, idEbdiCapturaFinal, creado_por]
         );
 
         const id_medicion = resultado.insertId;
@@ -1709,8 +1920,8 @@ app.post("/mediciones", autenticarUsuario, autorizarRoles("administrador", "esta
 });
 
 async function getOneMedicion(collection, id, req, res) {
-    let [data] = await pool.execute(
-        `SELECT
+    let sql = `
+        SELECT
             m.id_medicion AS id,
             m.id_medicion,
             m.id_infante,
@@ -1731,17 +1942,54 @@ async function getOneMedicion(collection, id, req, res) {
             m.estado_nutricional_registrado,
             m.motivo_correccion
         FROM mediciones_vigentes m
-        WHERE m.id_medicion = ?`,
-        [id]
-    );
-
+        INNER JOIN infantes i
+            ON i.id_infante = m.id_infante
+        WHERE m.id_medicion = ?
+    `;
+    const parametros = [id];
+    if (req.usuario?.rol === "estancia") {
+        const idEbdiUsuario = await obtenerEbdiUsuario(
+            req.usuario.id_usuario
+        );
+        if (idEbdiUsuario === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        sql += " AND i.id_ebdi = ?";
+        parametros.push(idEbdiUsuario);
+    }
+    if (req.usuario?.rol === "tutor") {
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM tutores t
+                INNER JOIN infante_tutor it
+                    ON it.id_tutor = t.id_tutor
+                WHERE t.id_usuario = ?
+                  AND it.id_infante = m.id_infante
+                  AND it.acceso_autorizado = TRUE
+            )
+        `;
+        parametros.push(req.usuario.id_usuario);
+    }
+    const [data] = await pool.execute(sql, parametros);
     if (data.length === 0) {
-        await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "mediciones", id_registro: id, motivo: "Medición no encontrada" });
+        await registrarBitacora(req, {
+            accion: "READ_FALLIDO",
+            entidad: collection,
+            id_registro: id,
+            motivo: "Medición no encontrada o fuera del ámbito autorizado"
+        });
         return res.sendStatus(404);
     }
-
-    await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "mediciones", id_registro: id, valor_nuevo: data[0] });
-    res.json(data[0]);
+    await registrarBitacora(req, {
+        accion: "READ_EXITOSO",
+        entidad: collection,
+        id_registro: id,
+        valor_nuevo: data[0]
+    });
+    return res.json(data[0]);
 }
 
 app.get("/mediciones/:id", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
@@ -1800,10 +2048,14 @@ async function updateMedicion(req, res) {
 
         //Verificar que exista la medición y bloquearla durante la corrección
         const [mediciones] = await connection.execute(
-            `SELECT id_medicion
-             FROM mediciones
-             WHERE id_medicion = ?
-             FOR UPDATE`,
+            `SELECT
+                m.id_medicion,
+                i.id_ebdi
+            FROM mediciones m
+            INNER JOIN infantes i
+                ON i.id_infante = m.id_infante
+            WHERE m.id_medicion = ?
+            FOR UPDATE`,
             [id_medicion]
         );
 
@@ -1813,6 +2065,22 @@ async function updateMedicion(req, res) {
             return res.status(404).json({
                 error: "No se encontró la medición"
             });
+        }
+
+        if (req.usuario?.rol === "estancia") {
+            const idEbdiUsuario = await obtenerEbdiUsuario(creado_por);
+            if (idEbdiUsuario === null) {
+                await connection.rollback();
+                return res.status(403).json({
+                    error: "El usuario no tiene una EBDI asignada."
+                });
+            }
+            if (Number(mediciones[0].id_ebdi) !== idEbdiUsuario) {
+                await connection.rollback();
+                return res.status(404).json({
+                    error: "La medición no existe o no pertenece a tu EBDI."
+                });
+            }
         }
 
         //Obtener la última versión registrada
@@ -2064,7 +2332,31 @@ async function getListSeguimientos(collection, req, res) {
     // Obtener seguimientos específicos para ReferenceField / getMany
     if (req.query.id) {
         const ids = Array.isArray(req.query.id) ? req.query.id : [req.query.id];
+        if (ids.some(id => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
+            return res.status(400).json({
+                mensaje: "Identificadores de seguimiento inválidos."
+            });
+        }
         const placeholders = ids.map(() => "?").join(",");
+        const parametros = [...ids];
+        let filtroEbdi = "";
+        if (String(req.usuario.rol).trim().toLowerCase() === "estancia") {
+            const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+            if (!idEbdi) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una EBDI asignada."
+                });
+            }
+            filtroEbdi = `
+                AND EXISTS (
+                    SELECT 1
+                    FROM infantes i
+                    WHERE i.id_infante = s.id_infante
+                    AND i.id_ebdi = ?
+                )
+            `;
+            parametros.push(idEbdi);
+        }
         const [data] = await pool.execute(
             `SELECT
                 s.id_seguimiento AS id,
@@ -2076,8 +2368,9 @@ async function getListSeguimientos(collection, req, res) {
                 s.estado,
                 s.fecha_cierre
              FROM seguimientos s
-             WHERE s.id_seguimiento IN (${placeholders})`,
-            ids
+             WHERE s.id_seguimiento IN (${placeholders})
+             ${filtroEbdi}`,
+             parametros
         );
         await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "seguimientos", motivo: "Consulta de seguimientos por ID" });
         return res.json(data);
@@ -2947,6 +3240,18 @@ async function getListAccionesSeguimiento(req, res) {
         condiciones.push("a.responsable_nombre LIKE ?");
         parametros.push(`%${String(responsableNombre).trim()}%`);
     }
+    const rol = String(req.usuario.rol).trim().toLowerCase();
+    //Para vista de usuario tipo estancia
+    if (rol === "estancia") {
+        const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (!idEbdi) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        condiciones.push("i.id_ebdi = ?");
+        parametros.push(idEbdi);
+    }
     const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
     const [data] = await pool.execute(
         `SELECT
@@ -3728,6 +4033,21 @@ app.get("/alertas", autenticarUsuario, autorizarRoles("administrador", "coordina
         const sortSolicitado = req.query._sort || "creada_en";
         const sortBy = columnasOrdenables[sortSolicitado] || "a.creada_en";
         const sortOrder = String(req.query._order).toUpperCase() === "ASC" ? "ASC" : "DESC";
+        //Para vista de usuario tipo estancia
+        const rol = String(req.usuario.rol).trim().toLowerCase();
+        const condiciones = [];
+        const parametros = [];
+        if (rol === "estancia") {
+            const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+            if (!idEbdi) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una EBDI asignada."
+                });
+            }
+            condiciones.push("i.id_ebdi = ?");
+            parametros.push(idEbdi);
+        }
+        const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
         // Consultar alertas y nombre del infante
         const [data] = await pool.execute(
             `SELECT
@@ -3748,12 +4068,13 @@ app.get("/alertas", autenticarUsuario, autorizarRoles("administrador", "coordina
              FROM alertas a
              INNER JOIN infantes i
                 ON i.id_infante = a.id_infante
+             ${where}
              ORDER BY ${sortBy} ${sortOrder}
              LIMIT ? OFFSET ?`,
-            [limite, inicio]
+            [...parametros,limite, inicio]
         );
         // Total de alertas para la paginación
-        const [total] = await pool.execute("SELECT COUNT(*) AS total FROM alertas");
+        const [total] = await pool.execute(`SELECT COUNT(*) AS total FROM alertas a INNER JOIN infantes i ON i.id_infante = a.id_infante ${where}`, parametros);
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
         await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "alertas", motivo: "Consulta de lista de alertas" });
@@ -3979,7 +4300,8 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                 password,
                 id_rol,
                 estado,
-                telefono
+                telefono,
+                id_ebdi
             } = req.body;
             if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || typeof password !== "string" || !password || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0) {
                 return res.status(400).json({
@@ -4029,6 +4351,28 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                     mensaje: "Ya existe un usuario registrado con ese correo."
                 });
             }
+            const nombreRol = String(roles[0].nombre).trim().toLowerCase();
+            const esEstancia = nombreRol === "estancia";
+            if (esEstancia) {
+                const idEbdi = Number(id_ebdi);
+                if (!Number.isSafeInteger(idEbdi) || idEbdi <= 0) {
+                    return res.status(400).json({
+                        mensaje: "Debes asignar una EBDI al usuario de estancia."
+                    });
+                }
+                const [ebdis] = await pool.execute(
+                    `SELECT id_ebdi
+                    FROM ebdi
+                    WHERE id_ebdi = ?
+                    AND activa = 1`,
+                    [idEbdi]
+                );
+                if (ebdis.length === 0) {
+                    return res.status(400).json({
+                        mensaje: "La EBDI seleccionada no existe o no está activa."
+                    });
+                }
+            }
             const passwordHash = await argon2.hash(
                 password,
                 ARGON2_OPTIONS
@@ -4042,7 +4386,6 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                 [nombreLimpio, correoLimpio, passwordHash, idRol, estadoFinal]
             );
             const idUsuario = resultado.insertId;
-            const nombreRol = String(roles[0].nombre).trim().toLowerCase();
             if (nombreRol === "tutor") {
                 // Buscar tutores con el mismo correo y bloquear las filas encontradas mientras se realiza la transacción.
                 const [tutoresExistentes] = await conexion.execute(
@@ -4089,6 +4432,14 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                     );
                 }
             }
+            if (esEstancia) {
+                await conexion.execute(
+                    `INSERT INTO usuario_ambito
+                        (id_usuario, id_ebdi, id_region, id_estado)
+                    VALUES (?, ?, NULL, NULL)`,
+                    [idUsuario, Number(id_ebdi)]
+                );
+            }
             await conexion.commit();
             const [nuevoUsuario] = await conexion.execute(
                 `SELECT
@@ -4099,9 +4450,11 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                     u.id_rol,
                     r.nombre AS rol,
                     u.estado,
-                    u.creado_en
+                    u.creado_en,
+                    ua.id_ebdi
                  FROM usuarios u
                  INNER JOIN roles r ON r.id_rol = u.id_rol
+                 LEFT JOIN usuario_ambito ua ON ua.id_usuario = u.id_usuario
                  WHERE u.id_usuario = ?`,
                 [idUsuario]
             );
@@ -4184,7 +4537,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 mensaje: "El ID del usuario no es válido."
             });
         }
-        const {nombre, correo, password, id_rol, estado} = req.body;
+        const {nombre, correo, password, id_rol, estado, id_ebdi} = req.body;
         if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0 || !["activo", "bloqueado", "baja"].includes(estado)) {
             return res.status(400).json({
                 mensaje: "Verifica el nombre, correo, rol y estado."
@@ -4218,9 +4571,36 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
             });
         }
         const [roles] = await pool.execute(
-            "SELECT id_rol FROM roles WHERE id_rol = ?",
+            "SELECT id_rol, nombre FROM roles WHERE id_rol = ?",
             [Number(id_rol)]
         );
+        if (roles.length === 0) {
+            return res.status(400).json({
+                mensaje: "El rol seleccionado no existe."
+            });
+        }
+        const nombreRol = String(roles[0].nombre).trim().toLowerCase();
+        const esEstancia = nombreRol === "estancia";
+        if (esEstancia) {
+            const idEbdi = Number(id_ebdi);
+            if (!Number.isSafeInteger(idEbdi) || idEbdi <= 0) {
+                return res.status(400).json({
+                    mensaje: "Debes asignar una EBDI al usuario de estancia."
+                });
+            }
+            const [ebdis] = await pool.execute(
+                `SELECT id_ebdi
+                FROM ebdi
+                WHERE id_ebdi = ?
+                AND activa = 1`,
+                [idEbdi]
+            );
+            if (ebdis.length === 0) {
+                return res.status(400).json({
+                    mensaje: "La EBDI seleccionada no existe o no está activa."
+                });
+            }
+        }
         if (roles.length === 0) {
             return res.status(400).json({
                 mensaje: "El rol seleccionado no existe."
@@ -4262,6 +4642,32 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 [nombreLimpio, correoLimpio, Number(id_rol), estado, id]
             );
         }
+        if (esEstancia) {
+            const [ambitos] = await pool.execute(
+                `SELECT id_ambito
+                FROM usuario_ambito
+                WHERE id_usuario = ?
+                LIMIT 1`,
+                [id]
+            );
+            if (ambitos.length > 0) {
+                await pool.execute(
+                    `UPDATE usuario_ambito
+                    SET id_ebdi = ?,
+                        id_region = NULL,
+                        id_estado = NULL
+                    WHERE id_usuario = ?`,
+                    [Number(id_ebdi), id]
+                );
+            } else {
+                await pool.execute(
+                    `INSERT INTO usuario_ambito
+                        (id_usuario, id_ebdi, id_region, id_estado)
+                    VALUES (?, ?, NULL, NULL)`,
+                    [id, Number(id_ebdi)]
+                );
+            }
+        }
         const [actualizados] = await pool.execute(
             `SELECT
                 u.id_usuario AS id,
@@ -4271,9 +4677,11 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 u.id_rol,
                 r.nombre AS rol,
                 u.estado,
-                u.creado_en
+                u.creado_en,
+                ua.id_ebdi
              FROM usuarios u
              INNER JOIN roles r ON r.id_rol = u.id_rol
+             LEFT JOIN usuario_ambito ua ON ua.id_usuario = u.id_usuario
              WHERE u.id_usuario = ?`,
             [id]
         );
