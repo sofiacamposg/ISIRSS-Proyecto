@@ -2647,6 +2647,26 @@ async function getListSeguimientos(collection, req, res) {
     // Construcción de condiciones SQL
     const condiciones = [];
     const parametros = [];
+    // contruccion de roles
+    const rol = String(req.usuario.rol).trim().toLowerCase();
+    // Restricción para estancia
+    if (rol === "estancia") {
+        const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdi === null || idEbdi === undefined) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM infantes i
+                WHERE i.id_infante = s.id_infante
+                AND i.id_ebdi = ?
+            )
+        `);
+        parametros.push(idEbdi);
+    }
     // Restricción para coordinador regional
     if (String(req.usuario.rol).trim().toLowerCase() === "coordinador_regional") {
         const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
@@ -2713,7 +2733,6 @@ async function getListSeguimientos(collection, req, res) {
 
 app.get("/seguimientos", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-
         if ("target" in req.query) {
             await getManyReference("seguimientos", req, res);
         } else if ("id_seguimiento" in req.query) {
@@ -2811,8 +2830,7 @@ async function createSeguimiento(req, res) {
             });
         }
 
-        // Si se seleccionó una condición, verificar que pertenezca
-        // al mismo infante.
+        // Si se seleccionó una condición, verificar que pertenezca al mismo infante.
         if (condicionId !== null) {
             const [condiciones] = await conexion.execute(
                 `SELECT id_condicion
@@ -2947,9 +2965,25 @@ async function getOneSeguimiento(collection, id, req, res) {
         `;
         parametros.push(idRegion);
     }
-
+    // Restricción para estancia
+    if (String(req.usuario.rol).trim().toLowerCase() === "estancia") {
+        const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdi === null || idEbdi === undefined) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM infantes i
+                WHERE i.id_infante = s.id_infante
+                AND i.id_ebdi = ?
+            )
+        `;
+        parametros.push(idEbdi);
+    }
     const [data] = await pool.execute(sql, parametros);
-
     if (data.length === 0) {
         await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "seguimientos", id_registro: id, motivo: "Seguimiento no encontrado" });
         return res.sendStatus(404);
