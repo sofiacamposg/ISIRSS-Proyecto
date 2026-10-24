@@ -1,4 +1,5 @@
 import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, FormDataConsumer, FunctionField, ReferenceInput, SelectInput, NumberInput, DateInput, TextInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
+import { usePermissions } from "react-admin"; // Se necesita para poder limitar el uso de ciertos componentes por ciertos usuarios (aunque ya se limiten en la API)
 
 const medicionesFilters = [
     <ReferenceInput key="id_infante" source="id_infante" reference="infantes" alwaysOn>
@@ -55,15 +56,19 @@ export function MedicionesList() {
 }
 
 export function MedicionesCreate() {
+  const { permissions } = usePermissions(); // permisos
+  const esEstancia = permissions === "estancia"; // permisos para estancia
   return (
     <Create title="Registrar medición">
       <SimpleForm>
         <ReferenceInput source="id_infante" reference="infantes" >
           <SelectInput label="Infante" optionText="nombre_completo" validate={required()} fullWidth />
         </ReferenceInput>
-        <ReferenceInput source="id_ebdi_captura" reference="ebdis">
-          <SelectInput label="EBDI donde se captura" optionText="nombre_ebdi" validate={required()} fullWidth/>
-        </ReferenceInput>
+        {!esEstancia && (
+          <ReferenceInput source="id_ebdi_captura" reference="ebdis">
+            <SelectInput label="EBDI donde se captura" optionText="nombre_ebdi" validate={required()} fullWidth/>
+          </ReferenceInput>
+        )}
         <DateInput
           source="fecha_medicion"
           label="Fecha de medición"

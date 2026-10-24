@@ -1,3 +1,4 @@
+//Uso de AI: La página fue generada como template pues no se contaba con la informaión real
 import {
   Accordion,
   AccordionSummary,

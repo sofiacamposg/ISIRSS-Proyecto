@@ -92,6 +92,24 @@ export const UsuarioCreate = () => (
                         />) : null
                 }
             </FormDataConsumer>
+            <FormDataConsumer>
+                {({ formData }) =>
+                    String(formData.id_rol) === "2" ? (
+                        <ReferenceInput source="id_ebdi" reference="ebdis" >
+                            <SelectInput label="EBDI asignada" optionText="nombre_ebdi" validate={required("Selecciona una EBDI")} fullWidth />
+                        </ReferenceInput>
+                    ) : null
+                }
+            </FormDataConsumer>
+            <FormDataConsumer>
+                {({ formData }) =>
+                    String(formData.id_rol) === "3" ? (
+                        <ReferenceInput source="id_region" reference="regiones" >
+                            <SelectInput label="Región asignada" optionText="nombre_region" validate={required("Selecciona una región")} fullWidth />
+                        </ReferenceInput>
+                    ) : null
+                }
+            </FormDataConsumer>
         </SimpleForm>
     </Create>
 );
@@ -116,6 +134,24 @@ export const UsuarioEdit = () => (
             <ReferenceInput source="id_rol" reference="roles" >
                 <SelectInput label="Rol del usuario" optionText="nombre" validate={required("Selecciona un rol")} fullWidth />
             </ReferenceInput>
+            <FormDataConsumer>
+                {({ formData }) =>
+                    String(formData.id_rol) === "2" ? (
+                        <ReferenceInput source="id_ebdi" reference="ebdis" >
+                            <SelectInput label="EBDI asignada" optionText="nombre_ebdi" validate={required("Selecciona una EBDI")} fullWidth />
+                        </ReferenceInput>
+                    ) : null
+                }
+            </FormDataConsumer>
+            <FormDataConsumer>
+                {({ formData }) =>
+                    String(formData.id_rol) === "3" ? (
+                        <ReferenceInput source="id_region" reference="regiones" >
+                            <SelectInput label="Región asignada" optionText="nombre_region" optionValue="id" emptyText="Selecciona una región" />
+                        </ReferenceInput>
+                    ) : null
+                }
+            </FormDataConsumer>
             <SelectInput source="estado" label="Estado de la cuenta" choices={[
                     { id: "activo", name: "Activo" },
                     { id: "bloqueado", name: "Bloqueado" },

@@ -1414,7 +1414,7 @@ async function getListMediciones(collection, req, res) {
         condiciones.push("m.id_infante = ?");
         parametros.push(Number(idInfante));
     }
-    if (typeof fechaMedicion === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)) { //USO DE IA: se utilizó IA para la implementación de expresiones regulares en C++ para validaciones de formato
+    if (typeof fechaMedicion === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)) { //USO DE IA: se utilizó IA para la implementación de expresiones regulares en js para validaciones de formato
         condiciones.push(
             "m.fecha_medicion >= ? AND m.fecha_medicion < DATE_ADD(?, INTERVAL 1 DAY)"
         );
