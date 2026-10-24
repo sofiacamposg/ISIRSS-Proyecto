@@ -1,4 +1,5 @@
 import {List, Datagrid, TextField, DateField, NumberField, FunctionField, Create, SimpleForm, TextInput, DateInput, SelectInput, required, Show, SimpleShowLayout, Edit, ShowButton, EditButton, ReferenceManyField, ReferenceInput, ReferenceField, BooleanField, SelectField} from "react-admin";
+import { usePermissions } from "react-admin"; // Se necesita para poder limitar el uso de ciertos componentes por ciertos usuarios (aunque ya se limiten en la API)
 
 const opcionesSexo = [
   { id: "femenino", name: "Femenino" },
@@ -46,6 +47,8 @@ export function InfantesList() {
 }
 
 export function InfantesCreate() {
+  const {permissions} = usePermissions(); // Permisos
+  const esEstancia = permissions ==="estancia"; // permisos para estancia
   return (
     <Create title="Registrar infante">
       <SimpleForm>
@@ -57,9 +60,11 @@ export function InfantesCreate() {
         <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
         <SelectInput source="sexo_patron" label="Sexo" choices={opcionesSexo} validate={required()} />
         <TextInput source="curp" label="CURP" helperText="Clave Única de Registro de Población. 18 caracteres, ej. LOMF240310MDFPRR09" fullWidth />
-        <ReferenceInput source="id_ebdi" reference="ebdis" >
-          <SelectInput label="EBDI" optionText="nombre_ebdi" helperText="Estancia para el Bienestar y Desarrollo Infantil." validate={required()} fullWidth />
-        </ReferenceInput>
+        {!esEstancia && (
+          <ReferenceInput source="id_ebdi" reference="ebdis" >
+            <SelectInput label="EBDI" optionText="nombre_ebdi" helperText="Estancia para el Bienestar y Desarrollo Infantil." validate={required()} fullWidth />
+          </ReferenceInput>
+        )}
 
         {/*Valida fecha de ingreso*/}
         <DateInput source="fecha_ingreso" label="Fecha de ingreso" validate={[required(), validarFechaIngreso]}/>
@@ -147,6 +152,8 @@ const validarFechaIngreso = (
 };
 
 export function InfantesEdit() {
+  const {permissions} = usePermissions(); // Permisos
+  const esEstancia = permissions ==="estancia"; // permisos para estancia
   return (
     <Edit title="Editar infante">
       <SimpleForm>
@@ -156,9 +163,11 @@ export function InfantesEdit() {
         <TextInput source="apellido_materno" label="Apellido materno"/>
         <DateInput source="fecha_nacimiento" label="Fecha de nacimiento" validate={[required(), validarFechaNacimiento]}/>
         <SelectInput source="sexo_patron" label="Sexo" choices={opcionesSexo} validate={required()} />
-        <ReferenceInput source="id_ebdi" reference="ebdis" >
-          <SelectInput label="EBDI" optionText="nombre_ebdi" helperText="Estancia para el Bienestar y Desarrollo Infantil." validate={required()} fullWidth />
-        </ReferenceInput>
+        {!esEstancia && (
+          <ReferenceInput source="id_ebdi" reference="ebdis" >
+            <SelectInput label="EBDI" optionText="nombre_ebdi" helperText="Estancia para el Bienestar y Desarrollo Infantil." validate={required()} fullWidth />
+          </ReferenceInput>
+        )}
         <DateInput source="fecha_ingreso" label="Fecha de ingreso" validate={[required(), validarFechaIngreso]}/>
         <SelectInput source="activo" label="Expediente" choices={[{ id: true, name: "Activo" },{ id: false, name: "Inactivo" },]}
             parse={(value) => value === true || value === "true"}
