@@ -1,5 +1,5 @@
 import { Box, Typography, Button } from "@mui/material";
-import { Link, useSidebarState } from "react-admin";
+import { Link } from "react-admin";
 import { ArrowUpwardOutlined } from "@mui/icons-material";
 
 export default function Footer() {
@@ -10,12 +10,6 @@ export default function Footer() {
       top: 0,
       behavior: 'smooth'
     });
-  }
-
-  const [menuAbierto] = useSidebarState(); // guarda el estado del menu, si esta abierto o cerrado
-  let anchoMenu = "55px"; // 55px cerrado, solo íconos, 240px abierto, son los valores default de React-admin
-  if (menuAbierto) {
-    anchoMenu = "240px";
   }
 
   return (
