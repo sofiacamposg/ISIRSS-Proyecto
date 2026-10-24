@@ -35,7 +35,7 @@ const useTotal = (recurso: string, activo: boolean) => {
   if (error || total === undefined) {
     return "No disponible";
   }
-  return total.toLocaleString("es-MX"); // agrega comita
+  return total.toLocaleString("es-MX"); // formatea el número
 };
 
 const Dashboard = () => {
@@ -170,6 +170,8 @@ const Dashboard = () => {
         <Typography id="titulo-glosario" variant="h5" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
           Términos de la plataforma
         </Typography>
+
+        {/* dl: description list, dt: description term, dd: description details */}
 
         <Card variant="outlined">
           <CardContent>

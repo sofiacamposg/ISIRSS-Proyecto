@@ -4,10 +4,13 @@ import { HomeOutlined } from "@mui/icons-material";
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 
-// & <- este componente, es decir el menu al que se le aplica para este código 
+// & <- significa "este mismo componente", es decir el menu al que se le aplica para este código 
+// & .Clase <- apunta a sus hijos
+// &.Clase apunta al propio componente cuando tiene esa clase
+
 // Estilos de los elementos del menú, texto e íconos blancos
 const estilosMenu = {
-    // cada elemento del menú, texto blanco y altura mínima
+    // cada opción dentro del menú 
     "& .RaMenuItemLink-root": {
         color: "common.white",
         minHeight: 44,
@@ -17,40 +20,41 @@ const estilosMenu = {
         alignItems: "center",
     },
     // React-Admin le pone a MUI noWrap, se activa
+    // con el menú abierto, el texto de cada opción hace salto de línea
     "&.RaMenu-open .RaMenuItemLink-root, &.RaMenu-open .RaMenuItemLink-root .MuiTypography-noWrap": {
         whiteSpace: "normal",
     },
-    // íconos blancos separado para que funcione bien
+    // el ícono dentro de cada opción en blanco
     "& .RaMenuItemLink-root .RaMenuItemLink-icon": {
         color: "common.white",
     },
-    // hover blanco con opacidad
+    // cada opción al haver hover, blanco con opacidad
     "& .RaMenuItemLink-root:hover": {
         backgroundColor: "#ffffff1f",
     },
-    // página actual: fondo blanco, texto e ícono guinda en negrita
-    "& .RaMenuItemLink-root.RaMenuItemLink-active": {
+    // la opción que además es la página actual
+    "& .RaMenuItemLink-root.RaMenuItemLink-active": { // cada elemento del menu (hijos) y cada elemento del menu activo
         color: "primary.main",
         backgroundColor: "common.white",
         fontWeight: 700,
     },
-    // ícono guinda separado para que funcione bien
+    // el ícono dentro de la opción activa, color guinda
     "& .RaMenuItemLink-root.RaMenuItemLink-active .RaMenuItemLink-icon": {
         color: "primary.main", // ícono guinda
     },
 
-    // menú cerrado con la opción seleccionada centrada
+    // con el menú cerrado, cada opción va centrada
     "&.RaMenu-closed .RaMenuItemLink-root": {
         px: 2,
         justifyContent: "center",
     },
-    // menú cerrado, el menú ya no necesita la caja grande
+    // con el menú cerrado, el ícono sin ancho mínimo para que se vea solo el ícono
     "&.RaMenu-closed .RaMenuItemLink-icon": {
         minWidth: 0,
     },
 }
 
-// Panel lateral con fondo guinda
+// Barra lateral con fondo guinda
 export function BarraLateral(props: SidebarProps) {
     return (
         <Sidebar

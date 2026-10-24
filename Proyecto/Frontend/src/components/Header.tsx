@@ -2,7 +2,7 @@ import { AppBar, Toolbar, Box, Typography, IconButton, Divider, Avatar } from "@
 
 import { RefreshOutlined, PersonOutline } from "@mui/icons-material";
 
-import { SidebarToggleButton, useGetIdentity, usePermissions, ToggleThemeButton, UserMenu, Logout } from "react-admin";
+import { SidebarToggleButton, useGetIdentity, usePermissions, UserMenu, Logout } from "react-admin";
 
 import logoMex from "../assets/Logo_mex.png";
 
@@ -25,10 +25,10 @@ export default function Header() {
 
   return (
     <AppBar
-        position="sticky"
-        elevation={0}
-        className="app-header"
-        sx={{ backgroundColor: "background.paper", color: "primary.main", borderBottom: "3px solid", borderColor: "primary.main", }}>
+      position="sticky"
+      elevation={0}
+      className="app-header"
+      sx={{ backgroundColor: "background.paper", color: "primary.main", borderBottom: "3px solid", borderColor: "primary.main", }}>
       <Toolbar className="app-header-toolbar">
 
         {/* Botón para abrir/cerrar sidebar */}
@@ -56,9 +56,6 @@ export default function Header() {
         {/* Acciones del encabezado */}
         <Box className="app-header-actions">
 
-          {/* Cambiar entre modo claro y oscuro */}
-          {/*<ToggleThemeButton />*/}
-
           {/* Actualizar la página */}
           <IconButton
             color="inherit"
@@ -72,12 +69,12 @@ export default function Header() {
           {/* Menú de usuario, muestra el nombre y el rol */}
           <Box className="app-header-user">
             <UserMenu
-            icon={
-              <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
-                <PersonOutline fontSize="small" />
-              </Avatar>
-            }
-          >
+              icon={
+                <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
+                  <PersonOutline fontSize="small" />
+                </Avatar>
+              }
+            >
               <Logout />
             </UserMenu>
 

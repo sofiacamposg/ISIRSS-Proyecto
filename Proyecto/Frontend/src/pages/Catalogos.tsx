@@ -1,4 +1,4 @@
-import { List, Datagrid, TextField, ReferenceField, BooleanField, Create, Edit, Show, SimpleForm, SimpleShowLayout, TextInput, SelectInput, ReferenceInput, required, EditButton, ShowButton, ReferenceFieldBase} from "react-admin";
+import { List, Datagrid, TextField, ReferenceField, BooleanField, Create, Edit, Show, SimpleForm, SimpleShowLayout, TextInput, SelectInput, ReferenceInput, required, EditButton, ShowButton} from "react-admin";
 import { usePermissions } from "react-admin"; // Se necesita para poder limitar el uso de ciertos componentes por ciertos usuarios (aunque ya se limiten en la API)
 
 const regionesChoices = [

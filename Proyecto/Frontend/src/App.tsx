@@ -127,7 +127,7 @@ const tema: ThemeOptions = {
   },
 };
 
-const i18nProvider = polyglotI18nProvider(() => spanishMessages, "es");
+const i18nProvider = polyglotI18nProvider(() => spanishMessages, "es"); // textos de React-Admin en español
 
 function App() {
   return (
