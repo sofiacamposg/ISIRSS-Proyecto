@@ -20,26 +20,14 @@ import AppLayout from "./layout/AppLayout";
 //Imports para los links del Footer
 import { CustomRoutes } from "react-admin";
 import { Route } from "react-router-dom";
+import Login from "./pages/Login";
+//Uso de AI: Los tres imports son de páginas generadas como templates 
 import PreguntasFrecuentes from "./pages/PreguntasFrecuentes";
 import AvisoPrivacidad from "./pages/AvisoPrivacidad";
 import Ayuda from "./pages/Ayuda";
-//Login
-import Login from "./pages/Login";
-//íconos
-import {
-  PeopleOutline,
-  StraightenOutlined,
-  AssignmentOutlined,
-  ShowChartOutlined,
-  NotificationsNoneOutlined,
-  DescriptionOutlined,
-  BadgeOutlined,
-  MapOutlined,
-  FlagOutlined,
-  ApartmentOutlined,
-  FavoriteBorderOutlined,
-  PlaylistAddCheckOutlined,
-  ManageAccountsOutlined,
+
+//íconos: recomendaciones de una AI
+import {PeopleOutline, StraightenOutlined, AssignmentOutlined, ShowChartOutlined, NotificationsNoneOutlined, DescriptionOutlined, BadgeOutlined, MapOutlined, FlagOutlined, ApartmentOutlined, FavoriteBorderOutlined, PlaylistAddCheckOutlined, ManageAccountsOutlined,
 } from "@mui/icons-material";
 
 import type { ThemeOptions } from "@mui/material";
@@ -134,7 +122,7 @@ function App() {
     <Admin
       title="Plataforma de Crecimiento y Desarrollo Saludable"
       theme={tema}
-      darkTheme={null} //Solo es para que no se ponga por default darktheme en lugar de los colores que dice en Login.tsx 
+      darkTheme={null} //Solo es para que no se ponga por default darktheme en lugar de los colores que dice en Login.tsx (Uso de AI)
       i18nProvider={i18nProvider}
       dataProvider={dataProvider}
       authProvider={authProvider}
