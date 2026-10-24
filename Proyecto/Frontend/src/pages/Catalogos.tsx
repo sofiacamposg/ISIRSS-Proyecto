@@ -1,4 +1,4 @@
-import { List, Datagrid, TextField, ReferenceField, BooleanField, Create, Edit, Show, SimpleForm, SimpleShowLayout, TextInput, SelectInput, ReferenceInput, required, EditButton, ShowButton, ReferenceFieldBase} from "react-admin";
+import { List, Datagrid, TextField, ReferenceField, BooleanField, Create, Edit, Show, SimpleForm, SimpleShowLayout, TextInput, SelectInput, ReferenceInput, required, EditButton, ShowButton} from "react-admin";
 
 const regionesChoices = [
   { id: "Norte", name: "Norte" },

@@ -1,4 +1,4 @@
-import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, FormDataConsumer, FunctionField, ReferenceInput, SelectInput, NumberInput, DateInput, TextInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
+import {List, Datagrid, TextField, DateField, NumberField, ReferenceField, FormDataConsumer, ReferenceInput, SelectInput, NumberInput, DateInput, TextInput, Create, Edit, Show, SimpleForm, SimpleShowLayout, required, ShowButton, EditButton} from "react-admin";
 
 const medicionesFilters = [
     <ReferenceInput key="id_infante" source="id_infante" reference="infantes" alwaysOn>

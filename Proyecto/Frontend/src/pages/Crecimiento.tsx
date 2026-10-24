@@ -90,13 +90,6 @@ export function CrecimientoPage() {
           : null,
     };
   });
-  
-  /*
-  console.log("Infante seleccionado:", infanteId);
-  console.log("Mediciones recibidas:", mediciones);
-  console.log("Cantidad de mediciones:", mediciones.length);
-  console.log("Datos de las gráficas:", datosGrafica);
-  */
 
   function GraficaLinea({titulo, campo, unidad,}: {
     titulo: string;
@@ -154,7 +147,8 @@ export function CrecimientoPage() {
       <FormControl fullWidth sx={{ mb: 3, maxWidth: 500 }}>
         <InputLabel id="infante-label">
           Seleccionar infante
-        </InputLabel>
+        </InputLabel> 
+        {/* labelId + InputLabel -> para que el selector y la etiqueta estén conectados */}
         <Select labelId="infante-label" value={infanteId} label="Seleccionar infante" onChange={(event) => {
             const valor = String(event.target.value);
             setInfanteId(valor === "" ? "" : Number(valor));
