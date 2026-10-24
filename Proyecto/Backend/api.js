@@ -100,9 +100,7 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
             "correo",
             "id_usuario"
         ];
-
-        // Evitar que el nombre de la columna de ordenamiento
-        // provenga de un valor no permitido.
+        // Evitar que el nombre de la columna de ordenamiento provenga de un valor no permitido.
         if (!columnas.includes(sortBy)) {
             sortBy = "id_tutor";
         }
@@ -137,6 +135,30 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
                 )
             `);
             parametros.push(idEbdiUsuario);
+        }
+        // Restringir la consulta individual a tutores vinculados con infantes de la región del coordinador.
+        if (req.usuario?.rol === "coordinador_regional") {
+            const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+            if (idRegion === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una región asignada."
+                });
+            }
+            condiciones.push(`
+                EXISTS (
+                    SELECT 1
+                    FROM infante_tutor it
+                    INNER JOIN infantes i
+                        ON i.id_infante = it.id_infante
+                    INNER JOIN ebdi e
+                        ON e.id_ebdi = i.id_ebdi
+                    INNER JOIN estados es
+                        ON es.id_estado = e.id_estado
+                    WHERE it.id_tutor = tutores.id_tutor
+                    AND es.id_region = ?
+                )
+            `);
+            parametros.push(idRegion);
         }
         //Filtros normales
         if (nombre && String(nombre).trim() !== "") {
@@ -299,18 +321,47 @@ async function tutorTieneAccesoInfante(idUsuario, idInfante) {
     return relaciones.length > 0;
 }
 
-    //relacionar ebdis con infantes
-    async function obtenerEbdiUsuario(idUsuario) {
-        const [ambitos] = await pool.execute(
-            `SELECT id_ebdi
-            FROM usuario_ambito
-            WHERE id_usuario = ?
-            AND id_ebdi IS NOT NULL
-            LIMIT 1`,
-            [idUsuario]
-        );
-        return ambitos.length > 0 ? Number(ambitos[0].id_ebdi) : null;
+//relacionar ebdis con infantes
+async function obtenerEbdiUsuario(idUsuario) {
+    const [ambitos] = await pool.execute(
+        `SELECT id_ebdi
+         FROM usuario_ambito
+         WHERE id_usuario = ?
+         AND id_ebdi IS NOT NULL
+         LIMIT 1`,
+         [idUsuario]
+    );
+    return ambitos.length > 0 ? Number(ambitos[0].id_ebdi) : null;
+}
+
+// La región asignada al usuario
+async function obtenerRegionUsuario(idUsuario) {
+    const [ambitos] = await pool.execute(
+        `SELECT DISTINCT
+            COALESCE(
+                ua.id_region,
+                es.id_region
+            ) AS id_region
+         FROM usuario_ambito ua
+         LEFT JOIN ebdi e
+            ON e.id_ebdi = ua.id_ebdi
+         LEFT JOIN estados es
+            ON es.id_estado = COALESCE(ua.id_estado, e.id_estado)
+         WHERE ua.id_usuario = ?
+           AND (
+                ua.id_region IS NOT NULL
+                OR ua.id_estado IS NOT NULL
+                OR ua.id_ebdi IS NOT NULL
+           )`,
+        [idUsuario]
+    );
+    const regiones = [...new Set(ambitos.map(fila => fila.id_region).filter(id => id !== null && id !== undefined).map(Number))];
+    // Sin región asignada o con ámbitos en regiones distintas.
+    if (regiones.length !== 1) {
+        return null;
     }
+    return regiones[0];
+}
 
 async function getListInfantes(collection, req, res) {
     // Obtener infantes específicos para ReferenceField / getMany    
@@ -355,6 +406,25 @@ async function getListInfantes(collection, req, res) {
                 )
             `;
             parametrosId.push(req.usuario.id_usuario);
+        }
+        // Los coordinadores regionales solo pueden consultar infantes pertenecientes a su región.
+        if (req.usuario?.rol === "coordinador_regional") {
+            const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+            if (idRegion === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una región asignada."
+                });
+            }
+            sql += `
+                AND i.id_ebdi IN (
+                    SELECT e2.id_ebdi
+                    FROM ebdi e2
+                    INNER JOIN estados es2
+                        ON es2.id_estado = e2.id_estado
+                    WHERE es2.id_region = ?
+                )
+            `;
+            parametrosId.push(idRegion);
         }
         const [data] = await pool.execute(sql, parametrosId);
         return res.json(data);
@@ -475,6 +545,25 @@ async function getListInfantes(collection, req, res) {
         }
         condiciones.push("i.id_ebdi = ?");
         parametros.push(idEbdiUsuario);
+    }
+    // Filtro regional para coordinadores.
+    if (req.usuario?.rol === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        condiciones.push(`
+            i.id_ebdi IN (
+                SELECT e2.id_ebdi
+                FROM ebdi e2
+                INNER JOIN estados es2
+                    ON es2.id_estado = e2.id_estado
+                WHERE es2.id_region = ?
+            )
+        `);
+        parametros.push(idRegion);
     }
     const whereSQL = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
     // Consultar infantes, conservando los datos originales
@@ -1252,30 +1341,80 @@ app.get("/regiones/:id", autenticarUsuario, autorizarRoles("administrador"), asy
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListEstados(collection, req, res) {
-    let sortBy = req.query._sort || "id_estado";
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    const rol = String(req.usuario?.rol || "").trim().toLowerCase();
+    const condiciones = [];
+    const parametros = [];
+
+    // Checar si es un usuario coordinador regional el que pide información
+    if (rol === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+
+        condiciones.push("e.id_region = ?");
+        parametros.push(idRegion);
+    }
+
+    const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
+
+    const columnasOrdenables = {
+        id: "e.id_estado",
+        id_estado: "e.id_estado",
+        nombre_estado: "e.nombre",
+        id_region: "e.id_region"
+    };
+
+    const sortBy = columnasOrdenables[req.query._sort] || "e.id_estado";
+    const sortOrder = String(req.query._order).toUpperCase() === "ASC" ? "ASC" : "DESC";
 
     let inicio = Number(req.query._start) || 0;
     let fin = Number(req.query._end) || 10;
     let limite = fin - inicio;
 
+    // Búsqueda de estados por ID
+    if (req.query.id) {
+        const ids = Array.isArray(req.query.id) ? req.query.id : [req.query.id];
+        if (ids.some(id => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
+            return res.status(400).json({
+                mensaje: "Los identificadores de estado no son válidos."
+            });
+        }
+        const placeholders = ids.map(() => "?").join(",");
+        const [data] = await pool.execute(
+            `SELECT
+                e.id_estado AS id,
+                e.nombre AS nombre_estado,
+                e.id_region
+             FROM estados e
+             ${where ? `${where} AND` : "WHERE"}
+             e.id_estado IN (${placeholders})`,
+            [...parametros, ...ids]
+        );
+        return res.json(data);
+    }
+
     // Consultar registros
-    let [data] = await pool.execute(
+    const [data] = await pool.execute(
         `SELECT
             e.id_estado AS id,
             e.nombre AS nombre_estado,
             e.id_region
 
         FROM estados e
-        ORDER BY \`${sortBy}\` ${sortOrder}
-        LIMIT ? OFFSET ?`,
-        [limite, inicio]
+        ${where}
+         ORDER BY ${sortBy} ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [...parametros, limite, inicio]
     );
     
     // Consultar total de registros
-    let [total] = await pool.execute(
-        `SELECT COUNT(*) AS total FROM estados`
-    );
+    const [total] = await pool.execute(
+        `SELECT COUNT(*) AS total FROM estados e ${where}`, parametros
+    );  
 
     // Enviar total para la paginación de React Admin
     res.set("Access-Control-Expose-Headers", "X-Total-Count");
@@ -1335,12 +1474,35 @@ app.get("/estados/:id", autenticarUsuario, autorizarRoles("administrador", "coor
 //---------------------------------------------------------------------------------------------------------------
 
 async function getListEbdi(collection, req, res) {
+    const rol = String(req.usuario?.rol || "").trim().toLowerCase();
+    const condiciones = [];
+    const parametros = [];
+
+    // Si es un usuario coordinador_regional
+    if (rol === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        condiciones.push("es.id_region = ?");
+        parametros.push(idRegion);
+    }
+
+    const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
 
     //Obtener EBDI específicos para ReferenceField / getMany
     if (req.query.id) {
         const ids = Array.isArray(req.query.id)
             ? req.query.id
             : [req.query.id];
+
+        if (ids.some(id => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
+            return res.status(400).json({
+                mensaje: "Los identificadores de EBDI no son válidos."
+            });
+        }
 
         const placeholders = ids.map(() => "?").join(",");
 
@@ -1353,30 +1515,32 @@ async function getListEbdi(collection, req, res) {
                 e.activa AS activo,
                 es.nombre AS nombre_estado
              FROM ebdi e
-             LEFT JOIN estados es
-                ON e.id_estado = es.id_estado
-             WHERE e.id_ebdi IN (${placeholders})`,
-            ids
+             INNER JOIN estados es ON e.id_estado = es.id_estado
+             ${where ? `${where} AND` : "WHERE"}
+             e.id_ebdi IN (${placeholders})`,
+            [...parametros, ...ids]
         );
 
-        await registrarBitacora(req, { accion: "READ_EXITOSO", entidad: "ebdi", motivo: "Consulta de EBDI por ID" });
         return res.json(data);
     }
 
-    let sortBy = req.query._sort || "id_ebdi";
-    let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
+    const columnasOrdenables = {
+        id: "e.id_ebdi",
+        id_ebdi: "e.id_ebdi",
+        nombre_ebdi: "e.nombre",
+        clave: "e.clave",
+        id_estado: "e.id_estado"
+    };
 
-    let inicio = Number(req.query._start) || 0;
+    const sortBy = columnasOrdenables[req.query._sort] || "e.id_ebdi";
+    const sortOrder = String(req.query._order).toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+    let inicio = Math.max(0, Number(req.query._start) || 0);
     let fin = Number(req.query._end) || 10;
-    let limite = fin - inicio;
-
-    // Validar la columna por la que se ordenará
-    if (true) {
-        sortBy = "id_ebdi";
-    }
+    let limite = Math.max(0, fin - inicio);
 
     // Consultar registros
-    let [data] = await pool.execute(
+    const [data] = await pool.execute(
         `SELECT
             e.id_ebdi AS id,
             e.nombre AS nombre_ebdi,
@@ -1384,19 +1548,17 @@ async function getListEbdi(collection, req, res) {
             e.clave,
             e.activa AS activo,
             es.nombre AS nombre_estado
-
-        FROM ebdi e
-
-        LEFT JOIN estados es
-            ON e.id_estado = es.id_estado
-        ORDER BY \`${sortBy}\` ${sortOrder}
-        LIMIT ? OFFSET ?`,
-        [limite, inicio]
+         FROM ebdi e
+         INNER JOIN estados es ON e.id_estado = es.id_estado
+         ${where}
+         ORDER BY ${sortBy} ${sortOrder}
+         LIMIT ? OFFSET ?`,
+        [...parametros, limite, inicio]
     );
     
     // Consultar total de registros
     let [total] = await pool.execute(
-        `SELECT COUNT(*) AS total FROM ebdi`
+        `SELECT COUNT(*) AS total FROM ebdi e INNER JOIN estados es ON e.id_estado = es.id_estado ${where}`,     parametros
     );
 
     // Enviar total para la paginación de React Admin
@@ -1501,6 +1663,28 @@ async function getListMediciones(collection, req, res) {
         `);
         parametros.push(idEbdiUsuario);
     }
+    // Restricción para coordinador regional
+    if (req.usuario?.rol === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM infantes i
+                INNER JOIN ebdi e
+                    ON e.id_ebdi = i.id_ebdi
+                INNER JOIN estados es
+                    ON es.id_estado = e.id_estado
+                WHERE i.id_infante = m.id_infante
+                AND es.id_region = ?
+            )
+        `);
+        parametros.push(idRegion);
+    }
     if (idInfante !== undefined && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
         condiciones.push("m.id_infante = ?");
         parametros.push(Number(idInfante));
@@ -1597,6 +1781,31 @@ async function getMedicionesPorInfante(req, res) {
         return res.status(400).json({
             error: "El ID del infante no es válido."
         });
+    }
+    // El coordinador regional solo puede consultar mediciones de infantes de su región.
+    if (req.usuario?.rol === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        const [infantes] = await pool.execute(
+            `SELECT i.id_infante
+            FROM infantes i
+            INNER JOIN ebdi e
+                ON e.id_ebdi = i.id_ebdi
+            INNER JOIN estados es
+                ON es.id_estado = e.id_estado
+            WHERE i.id_infante = ?
+            AND es.id_region = ?`,
+            [idInfante, idRegion]
+        );
+        if (infantes.length === 0) {
+            return res.status(404).json({
+                mensaje: "No se encontraron mediciones para este infante."
+            });
+        }
     }
     // Los tutores solo pueden consultar infantes autorizados.
     if (req.usuario?.rol === "tutor") {
@@ -1959,6 +2168,27 @@ async function getOneMedicion(collection, id, req, res) {
         sql += " AND i.id_ebdi = ?";
         parametros.push(idEbdiUsuario);
     }
+    // Restricción para coordinador regional
+    if (req.usuario?.rol === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM ebdi e
+                INNER JOIN estados es
+                    ON es.id_estado = e.id_estado
+                WHERE e.id_ebdi = i.id_ebdi
+                AND es.id_region = ?
+            )
+        `;
+        parametros.push(idRegion);
+    }
+    // Restriccion para tutores
     if (req.usuario?.rol === "tutor") {
         sql += `
             AND EXISTS (
@@ -2357,6 +2587,28 @@ async function getListSeguimientos(collection, req, res) {
             `;
             parametros.push(idEbdi);
         }
+        // Restricción para coordinador regional
+        if (String(req.usuario.rol).trim().toLowerCase() === "coordinador_regional") {
+            const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+            if (idRegion === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una región asignada."
+                });
+            }
+            filtroEbdi += `
+                AND EXISTS (
+                    SELECT 1
+                    FROM infantes i
+                    INNER JOIN ebdi e
+                        ON e.id_ebdi = i.id_ebdi
+                    INNER JOIN estados es
+                        ON es.id_estado = e.id_estado
+                    WHERE i.id_infante = s.id_infante
+                    AND es.id_region = ?
+                )
+            `;
+            parametros.push(idRegion);
+        }
         const [data] = await pool.execute(
             `SELECT
                 s.id_seguimiento AS id,
@@ -2395,6 +2647,48 @@ async function getListSeguimientos(collection, req, res) {
     // Construcción de condiciones SQL
     const condiciones = [];
     const parametros = [];
+    // contruccion de roles
+    const rol = String(req.usuario.rol).trim().toLowerCase();
+    // Restricción para estancia
+    if (rol === "estancia") {
+        const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdi === null || idEbdi === undefined) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM infantes i
+                WHERE i.id_infante = s.id_infante
+                AND i.id_ebdi = ?
+            )
+        `);
+        parametros.push(idEbdi);
+    }
+    // Restricción para coordinador regional
+    if (String(req.usuario.rol).trim().toLowerCase() === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        condiciones.push(`
+            EXISTS (
+                SELECT 1
+                FROM infantes i
+                INNER JOIN ebdi e
+                    ON e.id_ebdi = i.id_ebdi
+                INNER JOIN estados es
+                    ON es.id_estado = e.id_estado
+                WHERE i.id_infante = s.id_infante
+                AND es.id_region = ?
+            )
+        `);
+        parametros.push(idRegion);
+    }
     if (idInfante !== undefined && idInfante !== "" && Number.isInteger(Number(idInfante)) && Number(idInfante) > 0) {
         condiciones.push("s.id_infante = ?");
         parametros.push(Number(idInfante));
@@ -2439,7 +2733,6 @@ async function getListSeguimientos(collection, req, res) {
 
 app.get("/seguimientos", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia", "tutor"), async (req, res) => {
     try {
-
         if ("target" in req.query) {
             await getManyReference("seguimientos", req, res);
         } else if ("id_seguimiento" in req.query) {
@@ -2537,8 +2830,7 @@ async function createSeguimiento(req, res) {
             });
         }
 
-        // Si se seleccionó una condición, verificar que pertenezca
-        // al mismo infante.
+        // Si se seleccionó una condición, verificar que pertenezca al mismo infante.
         if (condicionId !== null) {
             const [condiciones] = await conexion.execute(
                 `SELECT id_condicion
@@ -2635,8 +2927,8 @@ app.post("/seguimientos", autenticarUsuario, autorizarRoles("administrador", "es
 });
 
 async function getOneSeguimiento(collection, id, req, res) {
-    const [data] = await pool.execute(
-        `SELECT
+    let sql = `
+        SELECT
             s.id_seguimiento AS id,
             s.id_seguimiento,
             s.id_infante,
@@ -2645,11 +2937,53 @@ async function getOneSeguimiento(collection, id, req, res) {
             s.motivo,
             s.estado,
             s.fecha_cierre
-         FROM seguimientos s
-         WHERE s.id_seguimiento = ?`,
-        [id]
-    );
+        FROM seguimientos s
+        WHERE s.id_seguimiento = ?
+    `;
 
+    const parametros = [id];
+
+    // Restricción para coordinador regional
+    if (String(req.usuario.rol).trim().toLowerCase() === "coordinador_regional") {
+        const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+        if (idRegion === null) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una región asignada."
+            });
+        }
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM infantes i
+                INNER JOIN ebdi e
+                    ON e.id_ebdi = i.id_ebdi
+                INNER JOIN estados es
+                    ON es.id_estado = e.id_estado
+                WHERE i.id_infante = s.id_infante
+                  AND es.id_region = ?
+            )
+        `;
+        parametros.push(idRegion);
+    }
+    // Restricción para estancia
+    if (String(req.usuario.rol).trim().toLowerCase() === "estancia") {
+        const idEbdi = await obtenerEbdiUsuario(req.usuario.id_usuario);
+        if (idEbdi === null || idEbdi === undefined) {
+            return res.status(403).json({
+                mensaje: "El usuario no tiene una EBDI asignada."
+            });
+        }
+        sql += `
+            AND EXISTS (
+                SELECT 1
+                FROM infantes i
+                WHERE i.id_infante = s.id_infante
+                AND i.id_ebdi = ?
+            )
+        `;
+        parametros.push(idEbdi);
+    }
+    const [data] = await pool.execute(sql, parametros);
     if (data.length === 0) {
         await registrarBitacora(req, { accion: "READ_FALLIDO", entidad: "seguimientos", id_registro: id, motivo: "Seguimiento no encontrado" });
         return res.sendStatus(404);
@@ -4047,6 +4381,26 @@ app.get("/alertas", autenticarUsuario, autorizarRoles("administrador", "coordina
             condiciones.push("i.id_ebdi = ?");
             parametros.push(idEbdi);
         }
+        // Restricción para coordinador regional
+        if (rol === "coordinador_regional") {
+            const idRegion = await obtenerRegionUsuario(req.usuario.id_usuario);
+            if (idRegion === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una región asignada."
+                });
+            }
+            condiciones.push(`
+                EXISTS (
+                    SELECT 1
+                    FROM ebdi e
+                    INNER JOIN estados es
+                        ON es.id_estado = e.id_estado
+                    WHERE e.id_ebdi = i.id_ebdi
+                    AND es.id_region = ?
+                )
+            `);
+            parametros.push(idRegion);
+        }
         const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
         // Consultar alertas y nombre del infante
         const [data] = await pool.execute(
@@ -4088,8 +4442,15 @@ app.get("/alertas", autenticarUsuario, autorizarRoles("administrador", "coordina
     }
 });
 
-async function detectarMedicionesPendientes() {
+async function detectarMedicionesPendientes(idRegion = null) {
     // Buscar infantes sin mediciones o con más de 45 días.
+    const condicionesRegion = [];
+    const parametrosRegion = [];
+    if (idRegion !== null) {
+        condicionesRegion.push("es.id_region = ?");
+        parametrosRegion.push(idRegion);
+    }
+    const whereRegion = condicionesRegion.length ? `WHERE ${condicionesRegion.join(" AND ")}` : "";
     const [infantesPendientes] = await pool.execute(`
         SELECT
             i.id_infante,
@@ -4099,11 +4460,22 @@ async function detectarMedicionesPendientes() {
                 i.apellido_paterno,
                 i.apellido_materno
             ) AS nombre_completo,
-            DATE_FORMAT(MAX(m.fecha_medicion), '%Y-%m-%d') AS ultima_medicion,
-            DATEDIFF(CURDATE(), MAX(m.fecha_medicion)) AS dias_transcurridos
+            DATE_FORMAT(
+                MAX(m.fecha_medicion),
+                '%Y-%m-%d'
+            ) AS ultima_medicion,
+            DATEDIFF(
+                CURDATE(),
+                MAX(m.fecha_medicion)
+            ) AS dias_transcurridos
         FROM infantes i
+        INNER JOIN ebdi e
+            ON e.id_ebdi = i.id_ebdi
+        INNER JOIN estados es
+            ON es.id_estado = e.id_estado
         LEFT JOIN mediciones_vigentes m
             ON m.id_infante = i.id_infante
+        ${whereRegion}
         GROUP BY
             i.id_infante,
             i.nombre,
@@ -4111,8 +4483,11 @@ async function detectarMedicionesPendientes() {
             i.apellido_materno
         HAVING
             MAX(m.fecha_medicion) IS NULL
-            OR DATEDIFF(CURDATE(), MAX(m.fecha_medicion)) > 45
-    `);
+            OR DATEDIFF(
+                CURDATE(),
+                MAX(m.fecha_medicion)
+            ) > 45
+    `, parametrosRegion);
     let creadas = 0;
     let omitidas = 0;
     for (const infante of infantesPendientes) {
@@ -4162,7 +4537,21 @@ async function detectarMedicionesPendientes() {
 
 app.post("/alertas/detectar-mediciones-pendientes", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
-        const resultado = await detectarMedicionesPendientes();
+        const rol = String(req.usuario.rol).trim().toLowerCase();
+        let resultado;
+        if (rol === "coordinador_regional") {
+            const idRegion = await obtenerRegionUsuario(
+                req.usuario.id_usuario
+            );
+            if (idRegion === null) {
+                return res.status(403).json({
+                    mensaje: "El usuario no tiene una región asignada."
+                });
+            }
+            resultado = await detectarMedicionesPendientes(idRegion);
+        } else {
+            resultado = await detectarMedicionesPendientes();
+        }
         await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "alertas", valor_nuevo: resultado, motivo: "Detección manual de mediciones pendientes" });
         res.json(resultado);
     } catch (error) {
@@ -4301,7 +4690,8 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                 id_rol,
                 estado,
                 telefono,
-                id_ebdi
+                id_ebdi,
+                id_region
             } = req.body;
             if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || typeof password !== "string" || !password || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0) {
                 return res.status(400).json({
@@ -4373,6 +4763,21 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                     });
                 }
             }
+            const esCoordinador = nombreRol === "coordinador_regional";
+            if (esCoordinador) {
+                const idRegion = Number(id_region);
+                if (!Number.isSafeInteger(idRegion) || idRegion <= 0) {
+                    return res.status(400).json({
+                        mensaje: "Debes asignar una región al coordinador regional."
+                    });
+                }
+                const [regiones] = await pool.execute("SELECT id_region FROM regiones WHERE id_region = ?", [idRegion]);
+                if (regiones.length === 0) {
+                    return res.status(400).json({
+                        mensaje: "La región seleccionada no existe."
+                    });
+                }
+            }
             const passwordHash = await argon2.hash(
                 password,
                 ARGON2_OPTIONS
@@ -4440,6 +4845,14 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                     [idUsuario, Number(id_ebdi)]
                 );
             }
+            if (esCoordinador) {
+                await conexion.execute(
+                    `INSERT INTO usuario_ambito
+                        (id_usuario, id_region, id_estado, id_ebdi)
+                    VALUES (?, ?, NULL, NULL)`,
+                    [idUsuario, Number(id_region)]
+                );
+            }
             await conexion.commit();
             const [nuevoUsuario] = await conexion.execute(
                 `SELECT
@@ -4451,7 +4864,8 @@ app.post("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async 
                     r.nombre AS rol,
                     u.estado,
                     u.creado_en,
-                    ua.id_ebdi
+                    ua.id_ebdi,
+                    ua.id_region
                  FROM usuarios u
                  INNER JOIN roles r ON r.id_rol = u.id_rol
                  LEFT JOIN usuario_ambito ua ON ua.id_usuario = u.id_usuario
@@ -4503,9 +4917,13 @@ app.get("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 u.id_rol,
                 r.nombre AS rol,
                 u.estado,
-                u.creado_en
+                u.creado_en,
+                ua.id_region,
+                ua.id_estado,
+                ua.id_ebdi
              FROM usuarios u
              INNER JOIN roles r ON r.id_rol = u.id_rol
+             LEFT JOIN usuario_ambito ua ON ua.id_usuario = u.id_usuario
              WHERE u.id_usuario = ?
              LIMIT 1`,
             [id]
@@ -4537,7 +4955,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 mensaje: "El ID del usuario no es válido."
             });
         }
-        const {nombre, correo, password, id_rol, estado, id_ebdi} = req.body;
+        const {nombre, correo, password, id_rol, estado, id_ebdi, id_region} = req.body;
         if (typeof nombre !== "string" || !nombre.trim() || typeof correo !== "string" || !correo.trim() || !Number.isInteger(Number(id_rol)) || Number(id_rol) <= 0 || !["activo", "bloqueado", "baja"].includes(estado)) {
             return res.status(400).json({
                 mensaje: "Verifica el nombre, correo, rol y estado."
@@ -4601,6 +5019,21 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 });
             }
         }
+        const esCoordinador = nombreRol === "coordinador_regional";
+        if (esCoordinador) {
+            const idRegion = Number(id_region);
+            if (!Number.isSafeInteger(idRegion) || idRegion <= 0) {
+                return res.status(400).json({
+                    mensaje: "Debes asignar una región al coordinador regional."
+                });
+            }
+            const [regiones] = await pool.execute("SELECT id_region FROM regiones WHERE id_region = ?", [idRegion]);
+            if (regiones.length === 0) {
+                return res.status(400).json({
+                    mensaje: "La región seleccionada no existe."
+                });
+            }
+        }
         if (roles.length === 0) {
             return res.status(400).json({
                 mensaje: "El rol seleccionado no existe."
@@ -4642,7 +5075,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 [nombreLimpio, correoLimpio, Number(id_rol), estado, id]
             );
         }
-        if (esEstancia) {
+        if (esCoordinador) {
             const [ambitos] = await pool.execute(
                 `SELECT id_ambito
                 FROM usuario_ambito
@@ -4650,6 +5083,32 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 LIMIT 1`,
                 [id]
             );
+            if (ambitos.length > 0) {
+                await pool.execute(
+                    `UPDATE usuario_ambito
+                    SET id_region = ?,
+                        id_estado = NULL,
+                        id_ebdi = NULL
+                    WHERE id_usuario = ?`,
+                    [Number(id_region), id]
+                );
+            } else {
+                await pool.execute(
+                    `INSERT INTO usuario_ambito
+                        (id_usuario, id_region, id_estado, id_ebdi)
+                    VALUES (?, ?, NULL, NULL)`,
+                    [id, Number(id_region)]
+                );
+            }
+        } else if (esEstancia) {
+            const [ambitos] = await pool.execute(
+                `SELECT id_ambito
+                FROM usuario_ambito
+                WHERE id_usuario = ?
+                LIMIT 1`,
+                [id]
+            );
+
             if (ambitos.length > 0) {
                 await pool.execute(
                     `UPDATE usuario_ambito
@@ -4667,6 +5126,10 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                     [id, Number(id_ebdi)]
                 );
             }
+        } else {
+            // Los roles que no utilizan ámbito regional o de EBDI
+            // no deben conservar una asignación administrativa anterior.
+            await pool.execute("DELETE FROM usuario_ambito WHERE id_usuario = ?", [id]);
         }
         const [actualizados] = await pool.execute(
             `SELECT
@@ -4678,7 +5141,8 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 r.nombre AS rol,
                 u.estado,
                 u.creado_en,
-                ua.id_ebdi
+                ua.id_ebdi,
+                ua.id_region
              FROM usuarios u
              INNER JOIN roles r ON r.id_rol = u.id_rol
              LEFT JOIN usuario_ambito ua ON ua.id_usuario = u.id_usuario
