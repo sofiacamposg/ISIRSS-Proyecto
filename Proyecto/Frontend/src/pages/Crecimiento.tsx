@@ -52,8 +52,7 @@ export function CrecimientoPage() {
           </Typography>
       );
   }
-  // IA -- Propuesto con apoyo de IA (Claude)
-  // La carga de mediciones ya no reemplaza la página, el selector se queda y no pierde el foco
+  // IA -- Solución propuesta por IA (Claude): separa la carga de mediciones para que el selector no desaparezca y no pierda el foco
   const cargandoSeleccion = infanteId !== "" && cargandoMediciones;
   const errorSeleccion = infanteId !== "" && errorMediciones;
   
@@ -98,7 +97,7 @@ export function CrecimientoPage() {
   }) {
     const datos = datosGrafica.filter((m) => m[campo] != null);
 
-    // resumen de texto para lectores de pantalla, indica primera y última medicion
+    // Idea propuesta por IA (Claude): hacer un resumen de texto para lectores de pantalla con la primera y última medición
     let resumen = "";
     if (datos.length > 0) {
       const primera = datos[0];
@@ -148,7 +147,7 @@ export function CrecimientoPage() {
         <InputLabel id="infante-label">
           Seleccionar infante
         </InputLabel> 
-        {/* labelId + InputLabel -> para que el selector y la etiqueta estén conectados */}
+        {/* labelId + InputLabel -> para que el selector y la etiqueta */}
         <Select labelId="infante-label" value={infanteId} label="Seleccionar infante" onChange={(event) => {
             const valor = String(event.target.value);
             setInfanteId(valor === "" ? "" : Number(valor));
