@@ -1,5 +1,15 @@
 //FUNCIONES DEL BACKEND Y API
 
+/* 
+ACERCA DE LOS COMENTARIOS EN ÉSTE ARCHIVO:
+
+Debido a la estructuración de las funciones y endpoints, gran parte del código sigue líneas similares en cada parte de las fucniones,
+es por esto que, para simplificar los comentarios, solo se agregaran en la primera vez que un tipo de bloque de código aparezca,
+o en casos donde se requiera describir algo disitinto.
+
+A lo largo del código se pueden encontrar declaraciones del uso de IA con la etiqueta: "USO DE IA:"
+*/
+
 //Definición de módulos
 const express = require('express');
 const cors = require('cors');
@@ -43,15 +53,17 @@ if (!JWT_SECRET) {
     throw new Error("Falta configurar la variable de entorno JWT_SECRET.");
 }
 
+
 //-----------------------------------------------------------------------------------------------------------------------------------------
 //FUNCIÓNES DE LOGS PARA BITÁCORA EN LA DB
-
+                                    //los = null permiten proporcionar el valor si se conoce, o no proporcionarlo y establecer un valor por defecto null
 async function registrarBitacora(req, {accion, entidad, id_registro = null, valor_anterior = null, valor_nuevo = null, motivo = null}) {
     try {
         //Obtener el usuario autenticado, si existe.
         //Obtiene el ID del usuario de forma segura. Si no hay sesión o falta el ID, asigna null.
         const idUsuario = req?.usuario?.id_usuario ?? null;
 
+        //Se ejecuta el query en la DB
         await pool.execute(
             `INSERT INTO bitacora (
                 id_usuario,
@@ -62,27 +74,32 @@ async function registrarBitacora(req, {accion, entidad, id_registro = null, valo
                 valor_nuevo,
                 motivo
             ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
+            [ //Los ? en el query permiten que mysql reciba el query y los valores de forma separada, mysql los maneja como valores y evitan injecciones de código
                 idUsuario,
                 accion,
-                entidad,
+                entidad,          //Convierte a strings para poderse usar en el query si es necesario
                 id_registro === null ? null : String(id_registro),
-                valor_anterior == null
-                    ? null
-                    : JSON.stringify(valor_anterior),
-                valor_nuevo == null
-                    ? null
-                    : JSON.stringify(valor_nuevo),
+                valor_anterior == null ? null : JSON.stringify(valor_anterior),
+                valor_nuevo == null ? null : JSON.stringify(valor_nuevo),
                 motivo
             ]
         );
 
         return true;
+
+    //Catch de errores que puedan arrojarse, evita parar la ejecución del código, 
     } catch (error) {
         //Un error en la bitácora no debe ocultar el resultado de la operación original.
         console.error("Error al registrar en bitácora:", error);
         return false;
     }
+}
+
+//FUNCIÓN PARA CONVERTIR LA FECHA, DE UNA QUE CONTENGA AÑO MES DÍA Y HORA, A UNA SIN HORA.
+function convertirFecha(fecha) {
+    if (!fecha) return null;
+
+    return String(fecha).substring(0, 10);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
@@ -91,6 +108,7 @@ async function registrarBitacora(req, {accion, entidad, id_registro = null, valo
 //Cada endpoint revisa que el usuario esté Autenticado, que la acción esté Autorizada y genera Logs de la acción.
 app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordinador_regional", "estancia"), async (req, res) => {
     try {
+        //BLOQUE DE CÓDIGO REPETIDO EN LAS FUCNIONES LLAMADAS PARA OBTENER LISTAS DE RECURSOS CON EL COMPONENTE LIST DE REACT-ADMIN
         //Para ordenamiento de datos y paginación que solicite Rect-Admin
         let sortBy = req.query._sort || "id_tutor";
         const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
@@ -108,23 +126,27 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
         ];
 
         // Evitar que el nombre de la columna de ordenamiento
-        // provenga de un valor no permitido.
+        // provenga de un valor no permitido. Evita inyecciones.
         if (!columnas.includes(sortBy)) {
             sortBy = "id_tutor";
         }
-        // Leer los filtros enviados por React-Admin.
+
+        //BLOQUE DE CÓDIGO REPETIDO EN LAS FUCNIONES LLAMADAS PARA OBTENER LISTAS DE RECURSOS CON EL COMPONENTE LIST DE REACT-ADMIN
+        // Leer los filtros enviados por React-Admin. 
+        //USO DE IA: La adaptación a las distintas formas en las que llega un filtro se realizaron con el operador ??, propuesto y estructurado por herramientas de IA. Se replicó y adaptó este uso por humanos para funciones siguientes
         let filtro = {};
         if (req.query.filter) {
             filtro = typeof req.query.filter === "string"
                 ? JSON.parse(req.query.filter)
                 : req.query.filter;
         }
+        //Busca el parámetro de distintos filtros posibles en "lugares" y "formas" distintas en las que pueden llegar desde React-Admin
         const nombre = filtro.nombre_tutor ?? req.query["filter[nombre_tutor]"] ?? req.query.nombre_tutor;
         const telefono = filtro.telefono ?? req.query["filter[telefono]"] ?? req.query.telefono;
         const correo = filtro.correo ?? req.query["filter[correo]"] ?? req.query.correo;
         const condiciones = [];
         const parametros = [];
-        if (nombre && String(nombre).trim() !== "") {
+        if (nombre && String(nombre).trim() !== "") {  //.trim() elimina los espacios al incio y final en un string, evita guardad espacios colocados por accidente en estos lugares. No elimina espacios en medio.
             condiciones.push("nombre LIKE ?");
             parametros.push(`%${String(nombre).trim()}%`);
         }
@@ -136,7 +158,10 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
             condiciones.push("correo LIKE ?");
             parametros.push(`%${String(correo).trim()}%`);
         }
+        //Construcción de la parte del query que contiene los filtros. Se daja un string vacio si no hay. Join une los elementos de un arreglo en un solo string, separados por lo que le indiques.
         const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
+
+        //Se ejecuta en la DB
         const [data] = await pool.execute(
             `SELECT
                 id_tutor AS id,
@@ -150,14 +175,16 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
              ORDER BY \`${sortBy === "nombre_tutor" ? "nombre" : sortBy}\` ${sortOrder}
              LIMIT ? OFFSET ?`,
             [...parametros, limite, inicio]
-        );
+        ); //USO DE IA: gracias a herramientas de IA, se logró impelmentar el operador ... 
+        //El operador spread (...) permite insertar en el arreglo de valores a utilizar en el query, el contenido del arreglo "parametros", en caso de estar vacío, no inserta nada. Permite una construcción dinámica del query
 
-        //Regresa cosas de paginación para React-Admin
+        //Regresa cosas de paginación para React-Admin.
         const [total] = await pool.execute( `SELECT COUNT(*) AS total FROM tutores ${where}`, parametros);
         res.set("Access-Control-Expose-Headers", "X-Total-Count");
         res.set("X-Total-Count", String(total[0].total));
 
         //Logs de la acción concretada
+        //USO DE IA: herramientas de IA fueron utilizadas para agilizar la colocación de los valores a enviar a la función de la bitácora. Permitió ahorrar tiempo y tener un estandar en los mensajes de los logs
         await registrarBitacora(req, {accion: "READ_EXITOSO", entidad: "tutores", motivo: "Consulta de lista de tutores"});
 
         res.json(data);
@@ -174,14 +201,17 @@ app.get("/tutores", autenticarUsuario, autorizarRoles("administrador", "coordina
 
 app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
+        //Obtiene y almacena los campos a insertar del request
         const { nombre, telefono, correo } = req.body;
-
+    
+        //Comrpueba existencia de datos obligatorios
         if (!nombre || !nombre.trim()) {
             return res.status(400).json({
                 error: "El nombre del tutor es obligatorio"
             });
         }
 
+        //<Realiza el insert
         const [resultado] = await pool.execute(
             `INSERT INTO tutores (nombre, telefono, correo)
              VALUES (?, ?, ?)`,
@@ -189,9 +219,10 @@ app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (
                 nombre.trim(),
                 telefono?.trim() || null,
                 correo?.trim() || null
-            ]
+            ] //BLOQUE REPETIDO: en el arreglo de valores enviados con el query, se suele administrar detalles de formato y/o valores default
         );
 
+        //BLOQUE REPETIDO EN FUCNIONES DE CREACIÓN: React-Admin solicita que le regreses el registro nuevo para poder administrarlo y mostrarlo en el front.
         const [rows] = await pool.execute(
             `SELECT
                 id_tutor AS id,
@@ -205,10 +236,12 @@ app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (
             [resultado.insertId]
         );
 
+        //Logs de acción exitosa
         await registrarBitacora(req, { accion: "CREATE_EXITOSO", entidad: "tutores", id_registro: resultado.insertId, valor_nuevo: rows[0] });
 
         res.status(201).json(rows[0]);
     } catch (error) {
+        //Logs de acción fallida
         await registrarBitacora(req, { accion: "CREATE_FALLIDO", entidad: "tutores", valor_nuevo: req.body, motivo: error.message });
         console.error("Error al crear tutor:", error);
         res.status(500).json({ error: "Error al registrar tutor" });
@@ -216,6 +249,8 @@ app.post("/tutores", autenticarUsuario, autorizarRoles("administrador"), async (
 });
 
 async function getOneTutor(collection, id, req, res) {
+    //BLOQUE REPETIDO EN FUNCIONES QUE REGRESEN UN SOLO REGISTRO (SHOW DE REACT-ADMIN)
+    //A diferencia de getList, getOne solo regresa los valores del registro con el id solicitado.
     let [data] = await pool.execute(
         `SELECT
             id_tutor AS id,
@@ -250,8 +285,9 @@ app.get("/tutores/:id", autenticarUsuario, autorizarRoles("administrador", "coor
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECUSRSO INFANTES
 
-//relacionar usuario tutor con infante
+//Para relacionar usuario tutor con infante y comprobar que el tutor tenga acceso autorizado a la vista de su infante.
 async function tutorTieneAccesoInfante(idUsuario, idInfante) {
     const [relaciones] = await pool.execute(
         `SELECT 1
@@ -268,8 +304,19 @@ async function tutorTieneAccesoInfante(idUsuario, idInfante) {
 }
 
 async function getListInfantes(collection, req, res) {
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //BLOQUE DE CÓDIGO REPETIDO EN ALGUNAS FUNCIONES DE getList (delimitado por +++++++++++++++++++++++++++++++++++++++++...)
+    //USO DE IA: Este "parche" al problema de abajo fue proprocionado por herramientas de IA
+
+    //Este es un bloque de código especial, el cual cubre una de las formas con las cuales React-Admin solicita datos de referencia desde otro recurso, dentro del componente List.
+    //Se tenia el error en el cual, si utilizabas datos de referencia en un recurso, por alguna razón no identificada, la primer x cantidad de registros,
+    //aunque fueran llamados desde la DB, y enviados al Frontend correctamente, no se mostraban en la vista del Frontend.
+    //Se intentó identificar la causa de forma manual, analizando las respuestas y uso de los datos y referencias; y de forma automática con el uso de herramientas de IA. 
+    //Pareciera ser, que esta primer x cantidad de registros se solicitaba como getMany y no como getList. No se obtuvo una razón concluyente a este comportamiento.
+    
     // Obtener infantes específicos para ReferenceField / getMany    
     if (req.query.id) {
+        //Guarda los ids solicitados en un arreglo y genera una parte del query con el tamaño necesario para leer todos los ids
         const ids = Array.isArray(req.query.id) ? req.query.id : [req.query.id];
         const placeholders = ids.map(() => "?").join(",");
         let sql = `
@@ -285,7 +332,7 @@ async function getListInfantes(collection, req, res) {
             WHERE i.id_infante IN (${placeholders})
         `;
         const parametrosId = [...ids];
-        // Los tutores solo pueden consultar infantes autorizados.
+        //Añade una sección al query para la vista de los tutores, los cuales solo pueden ver sus infantes. (Esta segunda sección se implementó despues de la solución de la IA)
         if (req.usuario?.rol === "tutor") {
             sql += `
                 AND EXISTS (
@@ -303,6 +350,9 @@ async function getListInfantes(collection, req, res) {
         const [data] = await pool.execute(sql, parametrosId);
         return res.json(data);
     }
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
     // Paginación
     const inicio = Math.max(0, Number(req.query._start) || 0);
     const fin = Number(req.query._end) || 10;
@@ -531,6 +581,10 @@ async function createInfante(req, res) {
 
     const connection = await pool.getConnection();
 
+    //Para la creación y modificación de registros que requieran del uso de varias tablas, se utiliza beginTransaction()
+    //Esto permite indicarle a mysql que se realizará un grupo de operaciones en una sóla unidda lógica. 
+    //Ayuda a evitar modificaciones e inserciones incompletas o erroneas, debido a que para establecer los cambios se requere el uso de commit(), y en caso de fallas, el uso de rollback() eliminar los cambios.
+    //USO DE IA: se utilizaron herramientas de IA para aprender como usar beginTransaction()
     try {
         await connection.beginTransaction();
 
@@ -618,7 +672,7 @@ async function createInfante(req, res) {
     } catch (error) {
         await connection.rollback();
         throw error;
-    } finally {
+    } finally { //El uso de finally permite ejecutar un último código antes de terminar la función. En este caso se requiere para asegurarse de que la conexión a la DB se libere.
         connection.release();
     }
 }
@@ -736,12 +790,6 @@ app.get("/infantes/:id", autenticarUsuario, autorizarRoles("administrador", "coo
     }
 });
 
-function convertirFecha(fecha) {
-    if (!fecha) return null;
-
-    return String(fecha).substring(0, 10);
-}
-
 async function updateInfante(req, res) {
     const id = Number(req.params.id);
 
@@ -759,6 +807,9 @@ async function updateInfante(req, res) {
         nombre_tutor,
         parentesco
     } = req.body;
+
+    //BLOQUE DE CÓDIGO REPETIDO EN CREATES Y UPDATES
+    //Antes de pasar a las opraciones en la DB, se valida existencia y formato de ciertos datos que lo requeren
 
     // Validar el ID de la URL
     if (!Number.isInteger(id) || id <= 0) {
@@ -1013,6 +1064,7 @@ app.put("/infantes/:id", autenticarUsuario, autorizarRoles("administrador", "est
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO REGIONES
 
 async function getListRegiones(collection, req, res) {
     // Si React Admin solicita regiones por ID,
@@ -1122,9 +1174,10 @@ app.get("/regiones/:id", autenticarUsuario, autorizarRoles("administrador"), asy
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO ESTADOS
 
 async function getListEstados(collection, req, res) {
-    let sortBy = req.query._sort || "id_estado";
+    let sortBy = "id_estado";
     let sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
 
     let inicio = Number(req.query._start) || 0;
@@ -1205,6 +1258,7 @@ app.get("/estados/:id", autenticarUsuario, autorizarRoles("administrador", "coor
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO EBDI
 
 async function getListEbdi(collection, req, res) {
 
@@ -1335,6 +1389,7 @@ app.get("/ebdis/:id", autenticarUsuario, autorizarRoles("administrador", "coordi
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO MEDICIONES
 
 async function getListMediciones(collection, req, res) {
     // Ordenamiento y paginación
@@ -1359,7 +1414,7 @@ async function getListMediciones(collection, req, res) {
         condiciones.push("m.id_infante = ?");
         parametros.push(Number(idInfante));
     }
-    if (typeof fechaMedicion === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)) {
+    if (typeof fechaMedicion === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fechaMedicion)) { //USO DE IA: se utilizó IA para la implementación de expresiones regulares en C++ para validaciones de formato
         condiciones.push(
             "m.fecha_medicion >= ? AND m.fecha_medicion < DATE_ADD(?, INTERVAL 1 DAY)"
         );
@@ -2069,6 +2124,7 @@ app.put("/mediciones/:id", autenticarUsuario, autorizarRoles("administrador", "e
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO SEGUIMIENTOS
 
 async function getListSeguimientos(collection, req, res) {
     // Obtener seguimientos específicos para ReferenceField / getMany
@@ -2632,6 +2688,7 @@ app.put("/seguimientos/:id", autenticarUsuario, autorizarRoles("administrador", 
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO CONDICIONES
 
 async function getListCondiciones(req, res) {
     const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
@@ -2922,6 +2979,7 @@ app.put("/condiciones/:id", autenticarUsuario, autorizarRoles("administrador", "
 });
 
 //---------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO ACCIONES
 
 async function getListAccionesSeguimiento(req, res) {
     const sortOrder = req.query._order === "ASC" ? "ASC" : "DESC";
@@ -3353,6 +3411,7 @@ app.put("/acciones_seguimiento/:id", autenticarUsuario, autorizarRoles("administ
 });
 
 //------------------------------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA REGISTRO Y VALIDACIÓN DE USUARIOS Y ROLES
 
 app.post("/registrarse", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
@@ -3571,7 +3630,9 @@ app.patch("/infante_tutor/:id", autenticarUsuario, autorizarRoles("administrador
     }
 );
 
- // demo
+//------------------------------------------------------------------------------------------------------------------------------
+//FUNCIONES DE LOGIN Y SESION
+
 app.post("/login", async (req, res) => {
     try {
         const { correo, password } = req.body;
@@ -3705,6 +3766,10 @@ app.get("/usuario-actual", autenticarUsuario, async (req, res) => {
         });
     }
 });
+
+
+//------------------------------------------------------------------------------------------------------------------------------------
+//FUNCIONES DE RECURSO ALERTAS
 
 // Ejecutar una revisión al iniciar el servidor.
 detectarMedicionesPendientes()
@@ -3862,6 +3927,9 @@ app.post("/alertas/detectar-mediciones-pendientes", autenticarUsuario, autorizar
         });
     }
 });
+
+//-----------------------------------------------------------------------------------------------------------------------------
+//FUNCIONES PARA RECURSO USUARIOS
 
 app.get("/usuarios", autenticarUsuario, autorizarRoles("administrador"), async (req, res) => {
     try {
@@ -4305,6 +4373,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
 });
 
 //-------------------------------------------------------------------------------------------------------------------------------------
+//INICIALIZACIÓN DE SERVIDOR CON COMUNICACION HTTPS CON EL FRONTEND
 
 const options = {
     key: fs.readFileSync("backend.key"),
