@@ -1,4 +1,5 @@
 import { List, Datagrid, TextField, ReferenceField, BooleanField, Create, Edit, Show, SimpleForm, SimpleShowLayout, TextInput, SelectInput, ReferenceInput, required, EditButton, ShowButton} from "react-admin";
+import { usePermissions } from "react-admin"; // Se necesita para poder limitar el uso de ciertos componentes por ciertos usuarios (aunque ya se limiten en la API)
 
 const regionesChoices = [
   { id: "Norte", name: "Norte" },
@@ -32,12 +33,16 @@ export function RegionesShow() {
 }
 
 export function EstadosList() {
+  const {permissions} = usePermissions(); // Permisos
+  const esCoordinador = permissions === "coordinador_regional"; // permisos para coordinadorregional
   return <List title="Estados"><Datagrid rowClick="show">
     <TextField source="id" label="ID" />
     <TextField source="nombre_estado" label="Estado" />
-    <ReferenceField source="id_region" reference="regiones" label="Región">
-      <TextField source="nombre_region" />
-    </ReferenceField>
+    {(!esCoordinador &&
+      <ReferenceField source="id_region" reference="regiones" label="Región">
+        <TextField source="nombre_region" />
+      </ReferenceField>
+    )}
     <EditButton label="Editar" /><ShowButton label="Ver" />
   </Datagrid></List>;
 }
