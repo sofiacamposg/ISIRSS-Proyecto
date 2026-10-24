@@ -5127,8 +5127,7 @@ app.put("/usuarios/:id", autenticarUsuario, autorizarRoles("administrador"), asy
                 );
             }
         } else {
-            // Los roles que no utilizan ámbito regional o de EBDI
-            // no deben conservar una asignación administrativa anterior.
+            // Los roles que no utilizan ámbito regional o de EBDI  no deben conservar una asignación administrativa anterior.
             await pool.execute("DELETE FROM usuario_ambito WHERE id_usuario = ?", [id]);
         }
         const [actualizados] = await pool.execute(
@@ -5176,3 +5175,5 @@ const options = {
 https.createServer(options, app).listen(PORT, () => {
     console.log(`Backend corriendo con HTTPS en puerto ${PORT}`);
 });
+
+// Esto es para arreglar algo en la branch de David
