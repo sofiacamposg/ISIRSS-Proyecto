@@ -13,11 +13,11 @@ export default function AppLayout({ children, ...props }: LayoutProps) {
   // IA -- Propuesto con apoyo de IA (Claude), se aplicó y se verificó manualmente con teclado y Narrador
   // Cada vez que cambia la página, mueve el foco al título h1 para que
   // quien usa teclado o lector de pantalla empiece en el contenido y no en el menú
-  useEffect(() => {
-    const titulo = document.getElementById("react-admin-title");
+  useEffect(() => { // se ejecuta cada vez que la variable pathname cambia (cuando el usuario navega a una nueva URL)
+    const titulo = document.getElementById("react-admin-title"); // busca el elemento del t]itulo en el DOM 
     if (titulo) {
       titulo.setAttribute("tabindex", "-1"); // enfocar h1 sin agregarlo al orden de tab
-      titulo.focus();
+      titulo.focus(); // envía foco del sistema directamente al título
     }
   }, [pathname]);
   
